@@ -31,6 +31,7 @@ SRC += analyses/ai/ai.cpp \
        interpreter/interpreter.cpp \
        json/json_parser.cpp \
        json_symbol_table.cpp \
+       memory-analyzer/gdb_api.cpp \
        path_strategies.cpp \
        pointer-analysis/value_set.cpp \
        solvers/bdd/miniBDD/miniBDD.cpp \
@@ -154,7 +155,12 @@ CLEANFILES = $(CATCH_TEST) testing-utils/testing-utils$(LIBEXT)
 # would cause unnecessary rebuilds
 $(filter %$(LIBEXT), $(CPROVER_LIBS)): cprover.dir
 
+<<<<<<< HEAD
 all: $(CATCH_TEST)
+=======
+CLEANFILES = $(TESTS)\
+        #Empty last line
+>>>>>>> cf37266... Add Makefiles enabeling memory-analyzer and tests
 
 clean: testing-utils-clean
 
