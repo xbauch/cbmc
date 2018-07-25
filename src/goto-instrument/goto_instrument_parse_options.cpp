@@ -1426,6 +1426,15 @@ void goto_instrument_parse_optionst::instrument_goto_program()
       reachability_slicer(goto_model);
   }
 
+  if(cmdline.isset("fp-reachability-slice"))
+  {
+    do_indirect_call_and_rtti_removal();
+
+    status() << "Performing a function pointer reachability slice" << eom;
+    function_path_reachability_slicer(
+      goto_model, cmdline.get_values("fp-reachability-slice"));
+  }
+
   // full slice?
   if(cmdline.isset("full-slice"))
   {
@@ -1606,6 +1615,9 @@ void goto_instrument_parse_optionst::help()
     " --render-cluster-function    clusterises the dot by functions\n"
     "\n"
     "Slicing:\n"
+    " --fp-reachability-slice <f>  remove instructions that cannot appear on a\n" // NOLINT(*)
+    "                              trace that visits all given functions. The list of functions has to be\n" // NOLINT(*)
+    "                              given as a colon separated list.\n"
     " --reachability-slice         slice away instructions that can't reach assertions\n" // NOLINT(*)
     " --full-slice                 slice away instructions that don't affect assertions\n" // NOLINT(*)
     " --property id                slice with respect to specific property only\n" // NOLINT(*)
