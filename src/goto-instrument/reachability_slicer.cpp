@@ -17,9 +17,12 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <stack>
 
+#include <goto-programs/remove_calls_no_body.h>
 #include <goto-programs/remove_skip.h>
 #include <goto-programs/remove_unreachable.h>
 #include <goto-programs/cfg.h>
+
+#include "util/message.h"
 
 #include "full_slicer_class.h"
 #include "reachability_slicer_class.h"
@@ -238,6 +241,29 @@ void reachability_slicer(
   reachability_slicert s;
   properties_criteriont p(properties);
   s(goto_model.goto_functions, p, include_forward_reachability);
+}
+
+/// Perform reachability slicing on goto_model for selected functions.
+/// \param goto_model Goto program to slice
+/// \param functions The functions relevant for the slicing (i.e. starting
+/// point for the search in the cfg). Anything that is reachable in the CFG
+/// starting from these functions will be kept.
+void function_path_reachability_slicer(
+  goto_modelt &goto_model,
+  const std::list<std::string> &functions)
+{
+  reachability_slicert s;
+  for(const auto &function : functions)
+  {
+    in_function_criteriont p(function);
+    s(goto_model.goto_functions, p, true);
+  }
+
+  remove_calls_no_bodyt remove_calls_no_body;
+  remove_calls_no_body(goto_model.goto_functions);
+
+  goto_model.goto_functions.update();
+  goto_model.goto_functions.compute_loop_numbers();
 }
 
 /// Perform reachability slicing on goto_model, with respect to criterion
