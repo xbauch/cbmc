@@ -15,5 +15,6 @@ Date:   September 2017
 #include <goto-programs/goto_model.h>
 
 void instrument_preconditions(goto_modelt &);
+void remove_preconditions(goto_modelt &);
 
 #endif // CPROVER_GOTO_PROGRAMS_INSTRUMENT_PRECONDITIONS_H
