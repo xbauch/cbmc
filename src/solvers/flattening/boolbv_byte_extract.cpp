@@ -45,9 +45,9 @@ bvt boolbvt::convert_byte_extract(const byte_extract_exprt &expr)
     {
       return convert_bv(flatten_byte_extract(expr, ns));
     }
-    catch(const flatten_byte_extract_exceptiont &)
+    catch(const flatten_byte_extract_exceptiont &e)
     {
-      warning() << byte_extract_flatten_exception.what() << eom;
+      warning() << e.what() << eom;
       return conversion_failed(expr);
     }
   }
