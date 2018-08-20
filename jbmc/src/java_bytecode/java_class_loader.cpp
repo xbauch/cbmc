@@ -227,19 +227,26 @@ java_class_loadert::get_parse_tree(
   return parse_trees;
 }
 
-void java_class_loadert::load_entire_jar(
+std::vector<irep_idt> java_class_loadert::load_entire_jar(
   const std::string &jar_path)
 {
   jar_index_optcreft jar_index = read_jar_file(jar_path);
   if(!jar_index)
-    return;
+    return {};
 
   jar_files.push_front(jar_path);
 
+  std::vector<irep_idt> classes;
+
   for(const auto &e : jar_index->get())
+  {
     operator()(e.first);
+    classes.push_back(e.first);
+  }
 
   jar_files.pop_front();
+
+  return classes;
 }
 
 java_class_loadert::jar_index_optcreft java_class_loadert::read_jar_file(
