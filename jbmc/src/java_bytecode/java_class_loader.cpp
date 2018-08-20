@@ -71,20 +71,31 @@ java_class_loadert::parse_tree_with_overlayst &java_class_loadert::operator()(
 
 optionalt<java_bytecode_parse_treet> java_class_loadert::get_class_from_jar(
   const irep_idt &class_name,
-  const std::string &jar_file,
-  const jar_indext &jar_index)
+  const std::string &jar_file)
 {
-  auto jar_index_it = jar_index.find(class_name);
-  if(jar_index_it == jar_index.end())
+  const auto filename = class_name_to_file(class_name);
+
+  optionalt<std::string> data;
+
+  try
+  {
+    // Opening the jar file might fail, throwing an exception,
+    // and also reading the file (with get_entry) might fail,
+    // e.g., if it doesn't exist in the JAR. In this case,
+    // {} is returned.
+    data = jar_pool(jar_file).get_entry(filename);
+  }
+  catch(const std::runtime_error &)
+  {
+    error() << "failed to open JAR file `" << jar_file << "'" << eom;
     return {};
-
-  debug()
-    << "Getting class `" << class_name << "' from JAR " << jar_file << eom;
-
-  auto data = jar_pool(jar_file).get_entry(jar_index_it->second);
+  }
 
   if(!data.has_value())
     return {};
+
+  debug() << "Getting class `" << class_name << "' from JAR " << jar_file
+          << eom;
 
   std::istringstream istream(*data);
   return java_bytecode_parse(istream, get_message_handler());
@@ -127,11 +138,8 @@ java_class_loadert::get_parse_tree(
   // First add all given JAR files
   for(const auto &jar_file : jar_files)
   {
-    jar_index_optcreft index = read_jar_file(jar_file);
-    if(!index)
-      continue;
     optionalt<java_bytecode_parse_treet> parse_tree =
-      get_class_from_jar(class_name, jar_file, *index);
+      get_class_from_jar(class_name, jar_file);
     if(parse_tree)
       parse_trees.emplace_back(std::move(*parse_tree));
   }
@@ -141,11 +149,8 @@ java_class_loadert::get_parse_tree(
   {
     if(has_suffix(cp_entry, ".jar"))
     {
-      jar_index_optcreft index = read_jar_file(cp_entry);
-      if(!index)
-        continue;
       optionalt<java_bytecode_parse_treet> parse_tree =
-        get_class_from_jar(class_name, cp_entry, *index);
+        get_class_from_jar(class_name, cp_entry);
       if(parse_tree)
         parse_trees.emplace_back(std::move(*parse_tree));
     }
@@ -230,33 +235,8 @@ java_class_loadert::get_parse_tree(
 std::vector<irep_idt> java_class_loadert::load_entire_jar(
   const std::string &jar_path)
 {
-  jar_index_optcreft jar_index = read_jar_file(jar_path);
-  if(!jar_index)
-    return {};
-
-  jar_files.push_front(jar_path);
-
-  std::vector<irep_idt> classes;
-
-  for(const auto &e : jar_index->get())
-  {
-    operator()(e.first);
-    classes.push_back(e.first);
-  }
-
-  jar_files.pop_front();
-
-  return classes;
-}
-
-java_class_loadert::jar_index_optcreft java_class_loadert::read_jar_file(
-  const std::string &jar_path)
-{
-  auto existing_it = jars_by_path.find(jar_path);
-  if(existing_it != jars_by_path.end())
-    return std::cref(existing_it->second);
-
   std::vector<std::string> filenames;
+
   try
   {
     filenames = jar_pool(jar_path).filenames();
@@ -264,13 +244,11 @@ java_class_loadert::jar_index_optcreft java_class_loadert::read_jar_file(
   catch(const std::runtime_error &)
   {
     error() << "failed to open JAR file `" << jar_path << "'" << eom;
-    return jar_index_optcreft();
+    return {};
   }
-  debug() << "Adding JAR file `" << jar_path << "'" << eom;
 
-  // Create a new entry in the map and initialize using the list of file names
-  // that are in jar_filet
-  jar_indext &jar_index = jars_by_path[jar_path];
+  std::vector<irep_idt> classes;
+
   for(auto &file_name : filenames)
   {
     if(has_suffix(file_name, ".class"))
@@ -278,11 +256,18 @@ java_class_loadert::jar_index_optcreft java_class_loadert::read_jar_file(
       debug()
         << "Found class file " << file_name << " in JAR `" << jar_path << "'"
         << eom;
-      irep_idt class_name=file_to_class_name(file_name);
-      jar_index[class_name] = file_name;
+      classes.push_back(file_to_class_name(file_name));
     }
   }
-  return std::cref(jar_index);
+
+  jar_files.push_front(jar_path);
+
+  for(const auto &c : classes)
+    operator()(c);
+
+  jar_files.pop_front();
+
+  return classes;
 }
 
 std::string java_class_loadert::file_to_class_name(const std::string &file)
