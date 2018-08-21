@@ -17,11 +17,13 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include "interval_domain.h"
 
-/// Instruments all "post-branch" instructions with assertions about variable
+/// Instruments all "post-branch" instructions with assumptions about variable
 /// intervals. For each such instruction, the function evaluates all variables
 /// referenced within the input goto_function as intervals, transforms these
 /// intervals into expressions and instruments the instruction with their
 /// conjunction.
+/// Example: interval [5,10] (for variable "x") translates into conjunction
+/// 5 <= x && x <= 10.
 /// \param interval_analysis Interval domain to be used for variable evaluation.
 /// \param goto_function [out] Goto function to be analysed and instrumented.
 void instrument_intervals(
@@ -86,7 +88,7 @@ void instrument_intervals(
 }
 
 /// Initialises the abstract interpretation over interval domain and
-/// instruments instructions using interval assertions.
+/// instruments instructions using interval assumptions.
 /// \param goto_model [out] Input code as goto_model.
 void interval_analysis(goto_modelt &goto_model)
 {
