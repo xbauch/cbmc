@@ -289,10 +289,14 @@ std::string java_class_loadert::file_to_class_name(const std::string &file)
     result=std::string(result, 2, std::string::npos);
   #endif
 
-  // slash to dot
-  for(std::string::iterator it=result.begin(); it!=result.end(); it++)
-    if(*it=='/')
-      *it='.';
+  // slash (and backslash) to dot
+  for(auto &ch : result)
+#ifdef _WIN32
+    if(ch == '/' || ch == '\\')
+#else
+    if(ch == '/')
+#endif
+      ch = '.';
 
   return result;
 }
