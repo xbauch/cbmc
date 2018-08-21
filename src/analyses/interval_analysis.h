@@ -7,7 +7,6 @@ Author: Daniel Kroening, kroening@kroening.com
 \*******************************************************************/
 
 /// \file
-/// Interval Analysis
 /// Interval Analysis -- implements the functionality necessary for performing
 /// abstract interpretation over interval domain for goto programs. The result
 /// of the analysis is an instrumented program.
