@@ -17,10 +17,10 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <stack>
 
+#include <goto-programs/cfg.h>
 #include <goto-programs/remove_calls_no_body.h>
 #include <goto-programs/remove_skip.h>
 #include <goto-programs/remove_unreachable.h>
-#include <goto-programs/cfg.h>
 
 #include "util/message.h"
 
