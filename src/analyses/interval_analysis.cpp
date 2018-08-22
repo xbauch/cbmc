@@ -88,7 +88,7 @@ void instrument_intervals(
 }
 
 /// Initialises the abstract interpretation over interval domain and
-/// instruments instructions using interval assertions.
+/// instruments instructions using interval assumptions.
 /// \param goto_model [out] Input code as goto_model.
 void interval_analysis(goto_modelt &goto_model)
 {
