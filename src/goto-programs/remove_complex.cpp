@@ -32,10 +32,10 @@ static exprt complex_member(const exprt &expr, irep_idt id)
   }
   else
   {
-    assert(expr.type().id()==ID_struct);
+    PRECONDITION(expr.type().id() == ID_struct);
     const struct_typet &struct_type=
       to_struct_type(expr.type());
-    assert(struct_type.components().size()==2);
+    PRECONDITION(struct_type.components().size() == 2);
     return member_exprt(expr, id, struct_type.components().front().type());
   }
 }
@@ -110,10 +110,10 @@ static void remove_complex(exprt &expr)
 
   if(expr.id()==ID_typecast)
   {
-    assert(expr.operands().size()==1);
-    if(expr.op0().type().id()==ID_complex)
+    auto const &typecast_expr = to_typecast_expr(expr);
+    if(typecast_expr.op().type().id() == ID_complex)
     {
-      if(expr.type().id()==ID_complex)
+      if(typecast_expr.type().id() == ID_complex)
       {
         // complex to complex
       }
@@ -121,9 +121,11 @@ static void remove_complex(exprt &expr)
       {
         // cast complex to non-complex is (T)__real__ x
         unary_exprt tmp(
-          ID_complex_real, expr.op0(), expr.op0().type().subtype());
+          ID_complex_real,
+          typecast_expr.op(),
+          typecast_expr.op().type().subtype());
 
-        expr=typecast_exprt(tmp, expr.type());
+        expr = typecast_exprt(tmp, typecast_expr.type());
       }
     }
   }
@@ -136,7 +138,8 @@ static void remove_complex(exprt &expr)
     if(expr.id()==ID_plus || expr.id()==ID_minus ||
        expr.id()==ID_mult || expr.id()==ID_div)
     {
-      assert(expr.operands().size()==2);
+      DATA_INVARIANT(
+        expr.operands().size() == 2, "binary operators have 2 arguments");
       // do component-wise:
       // x+y -> complex(x.r+y.r,x.i+y.i)
       struct_exprt struct_expr(expr.type());
@@ -158,62 +161,66 @@ static void remove_complex(exprt &expr)
     }
     else if(expr.id()==ID_unary_minus)
     {
-      assert(expr.operands().size()==1);
+      auto const &unary_minus_expr = to_unary_minus_expr(expr);
       // do component-wise:
       // -x -> complex(-x.r,-x.i)
-      struct_exprt struct_expr(expr.type());
+      struct_exprt struct_expr(unary_minus_expr.type());
       struct_expr.operands().resize(2);
 
-      struct_expr.op0()=
-        unary_minus_exprt(complex_member(expr.op0(), ID_real));
+      struct_expr.op0() =
+        unary_minus_exprt(complex_member(unary_minus_expr.op(), ID_real));
 
-      struct_expr.op0().add_source_location()=expr.source_location();
+      struct_expr.op0().add_source_location() =
+        unary_minus_expr.source_location();
 
-      struct_expr.op1()=
-        unary_minus_exprt(complex_member(expr.op0(), ID_imag));
+      struct_expr.op1() =
+        unary_minus_exprt(complex_member(unary_minus_expr.op(), ID_imag));
 
-      struct_expr.op1().add_source_location()=expr.source_location();
+      struct_expr.op1().add_source_location() =
+        unary_minus_expr.source_location();
 
       expr=struct_expr;
     }
     else if(expr.id()==ID_complex)
     {
-      assert(expr.operands().size()==2);
+      static_cast<void>(to_complex_expr(expr));
       expr.id(ID_struct);
     }
     else if(expr.id()==ID_typecast)
     {
-      assert(expr.operands().size()==1);
-      typet subtype=expr.type().subtype();
+      auto const &typecast_expr = to_typecast_expr(expr);
+      typet subtype = typecast_expr.type().subtype();
 
-      if(expr.op0().type().id()==ID_struct)
+      if(typecast_expr.op().type().id() == ID_struct)
       {
         // complex to complex -- do typecast per component
 
-        struct_exprt struct_expr(expr.type());
+        struct_exprt struct_expr(typecast_expr.type());
         struct_expr.operands().resize(2);
 
-        struct_expr.op0()=
-          typecast_exprt(complex_member(expr.op0(), ID_real), subtype);
+        struct_expr.op0() =
+          typecast_exprt(complex_member(typecast_expr.op(), ID_real), subtype);
 
-        struct_expr.op0().add_source_location()=expr.source_location();
+        struct_expr.op0().add_source_location() =
+          typecast_expr.source_location();
 
-        struct_expr.op1()=
-          typecast_exprt(complex_member(expr.op0(), ID_imag), subtype);
+        struct_expr.op1() =
+          typecast_exprt(complex_member(typecast_expr.op(), ID_imag), subtype);
 
-        struct_expr.op1().add_source_location()=expr.source_location();
+        struct_expr.op1().add_source_location() =
+          typecast_expr.source_location();
 
         expr=struct_expr;
       }
       else
       {
         // non-complex to complex
-        struct_exprt struct_expr(expr.type());
+        struct_exprt struct_expr(typecast_expr.type());
         struct_expr.operands().resize(2);
 
-        struct_expr.op0()=typecast_exprt(expr.op0(), subtype);
+        struct_expr.op0() = typecast_exprt(typecast_expr.op(), subtype);
         struct_expr.op1()=from_integer(0, subtype);
-        struct_expr.add_source_location()=expr.source_location();
+        struct_expr.add_source_location() = typecast_expr.source_location();
 
         expr=struct_expr;
       }
@@ -222,12 +229,12 @@ static void remove_complex(exprt &expr)
 
   if(expr.id()==ID_complex_real)
   {
-    assert(expr.operands().size()==1);
+    static_cast<void>(to_complex_real_expr(expr));
     expr=complex_member(expr.op0(), ID_real);
   }
   else if(expr.id()==ID_complex_imag)
   {
-    assert(expr.operands().size()==1);
+    static_cast<void>(to_complex_imag_expr(expr));
     expr=complex_member(expr.op0(), ID_imag);
   }
 
