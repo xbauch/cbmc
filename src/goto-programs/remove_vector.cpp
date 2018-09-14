@@ -88,13 +88,14 @@ static void remove_vector(exprt &expr)
        expr.id()==ID_mod  || expr.id()==ID_bitxor ||
        expr.id()==ID_bitand || expr.id()==ID_bitor)
     {
+      DATA_INVARIANT(
+        expr.operands().size() == 2, "binary operators have 2 operands");
       remove_vector(expr.type());
       array_typet array_type=to_array_type(expr.type());
 
       mp_integer dimension;
       to_integer(array_type.size(), dimension);
 
-      assert(expr.operands().size()==2);
       const typet subtype=array_type.subtype();
       // do component-wise:
       // x+y -> vector(x[0]+y[0],x[1]+y[1],...)
@@ -114,13 +115,14 @@ static void remove_vector(exprt &expr)
     }
     else if(expr.id()==ID_unary_minus || expr.id()==ID_bitnot)
     {
+      DATA_INVARIANT(
+        expr.operands().size() == 1, "unary operators have one operands");
       remove_vector(expr.type());
       array_typet array_type=to_array_type(expr.type());
 
       mp_integer dimension;
       to_integer(array_type.size(), dimension);
 
-      assert(expr.operands().size()==1);
       const typet subtype=array_type.subtype();
       // do component-wise:
       // -x -> vector(-x[0],-x[1],...)
