@@ -600,19 +600,19 @@ void string_abstractiont::replace_string_macros(
 {
   if(expr.id()=="is_zero_string")
   {
-    assert(expr.operands().size()==1);
+    PRECONDITION(expr.operands().size()==1);
     exprt tmp=build(expr.op0(), whatt::IS_ZERO, lhs, source_location);
     expr.swap(tmp);
   }
   else if(expr.id()=="zero_string_length")
   {
-    assert(expr.operands().size()==1);
+    PRECONDITION(expr.operands().size()==1);
     exprt tmp=build(expr.op0(), whatt::LENGTH, lhs, source_location);
     expr.swap(tmp);
   }
   else if(expr.id()=="buffer_size")
   {
-    assert(expr.operands().size()==1);
+    PRECONDITION(expr.operands().size()==1);
     exprt tmp=build(expr.op0(), whatt::SIZE, false, source_location);
     expr.swap(tmp);
   }
@@ -669,7 +669,7 @@ const typet &string_abstractiont::build_abstraction_type(const typet &type)
 
   abstraction_types_map.swap(tmp);
   map_entry=tmp.find(eff_type);
-  assert(map_entry!=tmp.end());
+  CHECK_RETURN(map_entry!=tmp.end());
   return abstraction_types_map.insert(
       std::make_pair(eff_type, map_entry->second)).first->second;
 }
@@ -836,7 +836,7 @@ bool string_abstractiont::build_if(const if_exprt &o_if,
 bool string_abstractiont::build_array(const array_exprt &object,
     exprt &dest, bool write)
 {
-  assert(is_char_type(object.type().subtype()));
+  PRECONDITION(is_char_type(object.type().subtype()));
 
   // writing is invalid
   if(write)
@@ -860,7 +860,7 @@ bool string_abstractiont::build_array(const array_exprt &object,
 bool string_abstractiont::build_pointer(const exprt &object,
     exprt &dest, bool write)
 {
-  assert(object.type().id()==ID_pointer);
+  PRECONDITION(object.type().id()==ID_pointer);
 
   pointer_arithmetict ptr(object);
   if(ptr.pointer.id()==ID_address_of)
@@ -945,7 +945,7 @@ bool string_abstractiont::build_symbol(const symbol_exprt &sym, exprt &dest)
   const symbolt &symbol=ns.lookup(sym.get_identifier());
 
   const typet &abstract_type=build_abstraction_type(symbol.type);
-  assert(!abstract_type.is_nil());
+  CHECK_RETURN(!abstract_type.is_nil());
 
   irep_idt identifier="";
 
@@ -1207,7 +1207,7 @@ goto_programt::targett string_abstractiont::value_assignments(
   if(rhs.id()==ID_if)
     return value_assignments_if(dest, target, lhs, to_if_expr(rhs));
 
-  assert(type_eq(lhs.type(), rhs.type(), ns));
+  PRECONDITION(type_eq(lhs.type(), rhs.type(), ns));
 
   if(lhs.type().id()==ID_array)
   {
@@ -1334,8 +1334,9 @@ exprt string_abstractiont::member(const exprt &a, whatt what)
   if(a.is_nil())
     return a;
 
-  assert(type_eq(a.type(), string_struct, ns) ||
-      is_ptr_string_struct(a.type()));
+  PRECONDITION(type_eq(a.type(), string_struct, ns) ||
+      is_ptr_string_struct(a.type())); // TODO seems a bit mean to not comment
+  // this better
 
   exprt struct_op=
     a.type().id()==ID_pointer?
