@@ -15,6 +15,7 @@ Author: Daniel Kroening, kroening@kroening.com
 
 #include <util/arith_tools.h>
 #include <util/c_types.h>
+#include <util/exception_utils.h>
 #include <util/pointer_predicates.h>
 #include <util/type_eq.h>
 
@@ -379,7 +380,7 @@ exprt string_abstractiont::make_val_or_dummy_rec(goto_programt &dest,
       ++it2;
     }
 
-    assert(components.size()==seen);
+    assert(components.size()==seen); // TODO review
   }
 
   return nil_exprt();
@@ -549,8 +550,7 @@ void string_abstractiont::abstract_function_call(
 
     if(it1==arguments.end())
     {
-      error() << "function call: not enough arguments" << eom;
-      throw 0;
+      throw system_exceptiont("function call: not enough arguments");
     }
 
     str_args.push_back(exprt());
@@ -562,8 +562,8 @@ void string_abstractiont::abstract_function_call(
     if(str_args.back().type().id()==ID_array &&
         abstract_type.id()==ID_pointer)
     {
-      assert(type_eq(str_args.back().type().subtype(),
-          abstract_type.subtype(), ns));
+      INVARIANT(type_eq(str_args.back().type().subtype(),
+          abstract_type.subtype(), ns), ""); // TODO review message
 
       index_exprt idx(str_args.back(), from_integer(0, index_type()));
       // disable bounds check on that one
@@ -631,7 +631,7 @@ exprt string_abstractiont::build(
   if(pointer.id()==ID_typecast)
   {
     // cast from another pointer type?
-    assert(pointer.operands().size()==1);
+    INVARIANT(pointer.operands().size()==1, ""); //TODO review message
     if(pointer.op0().type().id()!=ID_pointer)
       return build_unknown(what, write);
 
@@ -847,7 +847,7 @@ bool string_abstractiont::build_array(const array_exprt &object,
   // don't do anything, if we cannot determine the size
   if(to_integer(a_size, size))
     return true;
-  assert(size==object.operands().size());
+  INVARIANT(size==object.operands().size(), ""); // TODO review message
 
   exprt::operandst::const_iterator it=object.operands().begin();
   for(mp_integer i=0; i<size; ++i, ++it)
@@ -1125,7 +1125,7 @@ goto_programt::targett string_abstractiont::abstract_char_assign(
     if(!build_wrap(i_lhs.array(), new_lhs, true))
     {
       exprt i2=member(new_lhs, whatt::LENGTH);
-      assert(i2.is_not_nil());
+      INVARIANT(i2.is_not_nil(), ""); // TODO review message
 
       exprt new_length=i_lhs.index();
       make_type(new_length, i2.type());
@@ -1143,7 +1143,7 @@ goto_programt::targett string_abstractiont::abstract_char_assign(
     if(!build_wrap(ptr.pointer, new_lhs, true))
     {
       const exprt i2=member(new_lhs, whatt::LENGTH);
-      assert(i2.is_not_nil());
+      INVARIANT(i2.is_not_nil(), ""); // TODO review message
 
       make_type(ptr.offset, build_type(whatt::LENGTH));
       return
@@ -1171,7 +1171,7 @@ goto_programt::targett string_abstractiont::char_assign(
   goto_programt tmp;
 
   const exprt i1=member(new_lhs, whatt::IS_ZERO);
-  assert(i1.is_not_nil());
+  INVARIANT(i1.is_not_nil(), ""); // TODO review message
 
   goto_programt::targett assignment1=tmp.add_instruction();
   assignment1->make_assignment();
@@ -1234,7 +1234,7 @@ goto_programt::targett string_abstractiont::value_assignments(
 
     for(const auto &comp : struct_union_type.components())
     {
-      assert(!comp.get_name().empty());
+      INVARIANT(!comp.get_name().empty(), ""); // TODO review message
 
       target=value_assignments(dest, target,
           member_exprt(lhs, comp.get_name(), comp.type()),
