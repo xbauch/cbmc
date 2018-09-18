@@ -9,6 +9,7 @@ Author: Fotis Koutoulakis, fotis.koutoulakis@diffblue.com
 #ifndef CPROVER_UTIL_EXCEPTION_UTILS_H
 #define CPROVER_UTIL_EXCEPTION_UTILS_H
 
+#include "source_location.h"
 #include <string>
 
 #include "source_location.h"
@@ -118,6 +119,20 @@ public:
 private:
   /// The reason this exception was generated.
   std::string reason;
+};
+
+// FIXME this will inherit from a cprover_exception_baset and be caught as such
+class incorrect_goto_program_exceptiont
+{
+public:
+  incorrect_goto_program_exceptiont(
+    std::string message,
+    source_locationt source_location) noexcept;
+  std::string what() const noexcept;
+
+private:
+  std::string message;
+  source_locationt source_location;
 };
 
 #endif // CPROVER_UTIL_EXCEPTION_UTILS_H
