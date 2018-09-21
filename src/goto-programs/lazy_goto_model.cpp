@@ -95,7 +95,8 @@ void lazy_goto_modelt::initialize(const cmdlinet &cmdline)
   const std::vector<std::string> &files=cmdline.args;
   if(files.empty())
   {
-    throw invalid_user_input_exceptiont("No program provided", "", "");
+    throw invalid_user_input_exceptiont(
+      "no program provided", "cbmc file.c ...");
   }
 
   std::vector<std::string> binaries, sources;
@@ -134,10 +135,8 @@ void lazy_goto_modelt::initialize(const cmdlinet &cmdline)
         source_locationt location;
         location.set_file(filename);
         msg.error().source_location=location;
-        throw deserialization_exceptiont(
-          "failed to figure out type of file"
-          "\nsource location: " +
-          location.as_string());
+        throw incorrect_goto_program_exceptiont(
+          "failed to figure out type of file", location);
       }
 
       languaget &language=*lf.language;
@@ -148,8 +147,7 @@ void lazy_goto_modelt::initialize(const cmdlinet &cmdline)
 
       if(language.parse(infile, filename))
       {
-        // TODO more helpful error message
-        throw deserialization_exceptiont("PARSING ERROR");
+        throw deserialization_exceptiont("language parsing failed");
       }
 
       lf.get_modules();
@@ -159,8 +157,8 @@ void lazy_goto_modelt::initialize(const cmdlinet &cmdline)
 
     if(language_files.typecheck(symbol_table))
     {
-      // TODO more helpful error message
-      throw deserialization_exceptiont("CONVERSION ERROR");
+      throw deserialization_exceptiont(
+        "type-checking of interface/files/modules failed");
     }
   }
 
@@ -170,8 +168,8 @@ void lazy_goto_modelt::initialize(const cmdlinet &cmdline)
 
     if(read_object_and_link(file, *goto_model, message_handler))
     {
-      // TODO more helpful error message
-      throw deserialization_exceptiont("Failed to read/link goto model");
+      throw deserialization_exceptiont(
+        "failed to read object or link in file `" + file + '\'');
     }
   }
 
@@ -207,8 +205,7 @@ void lazy_goto_modelt::initialize(const cmdlinet &cmdline)
 
   if(entry_point_generation_failed)
   {
-    // TODO more helpful error message
-    throw deserialization_exceptiont("SUPPORT FUNCTION GENERATION ERROR");
+    throw deserialization_exceptiont("failed to generate entry point");
   }
 
   // stupid hack

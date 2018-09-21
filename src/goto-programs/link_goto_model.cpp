@@ -173,8 +173,8 @@ void link_goto_model(
 
   if(linking.typecheck_main())
   {
-    // TODO more helpful error message
-    throw deserialization_exceptiont("Typechecking main failed");
+    throw deserialization_exceptiont(
+      "failed to rename symbols during typechecking phase of linking");
   }
   if(link_functions(
        dest.symbol_table,
@@ -185,6 +185,6 @@ void link_goto_model(
        weak_symbols,
        linking.object_type_updates))
   {
-    throw deserialization_exceptiont("Linking failed");
+    throw deserialization_exceptiont("failed to link functions");
   }
 }

@@ -77,12 +77,8 @@ void find_used_functions(
         {
           const code_function_callt &call = to_code_function_call(it->code);
 
-          // check that this is actually a simple call
-          INVARIANT(
-            call.function().id() == ID_symbol,
-            "by this point, all kinds of function calls should have been "
-            "converted to simple function calls");
-
+          // to_symbol_exprt checks that by this point, all kinds of function
+          // calls have been converted to simple function calls
           const irep_idt &identifier =
             to_symbol_expr(call.function()).get_identifier();
 

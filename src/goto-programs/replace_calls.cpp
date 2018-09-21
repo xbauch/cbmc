@@ -108,7 +108,7 @@ void replace_callst::operator()(
         const symbol_exprt &se = to_symbol_expr(rhs);
         INVARIANT(
           !has_suffix(id2string(se.get_identifier()), RETURN_VALUE_SUFFIX),
-          "this happens before returns are removed");
+          "returns must not be removed before replacing calls");
       }
     }
 
@@ -136,7 +136,7 @@ replace_callst::replacement_mapt replace_callst::parse_replacement_list(
     if(!r.second)
     {
       throw invalid_user_input_exceptiont(
-        "Conflicting replacement for function " + original, "--replace-calls");
+        "conflicting replacement for function " + original, "--replace-calls");
     }
   }
 
@@ -152,7 +152,7 @@ void replace_callst::check_replacement_map(
   {
     if(replacement_map.find(p.second) != replacement_map.end())
       throw invalid_user_input_exceptiont(
-        "Function " + id2string(p.second) +
+        "function " + id2string(p.second) +
           " cannot both be replaced and be a replacement",
         "--replace-calls");
 
@@ -160,7 +160,7 @@ void replace_callst::check_replacement_map(
 
     if(it2 == goto_functions.function_map.end())
       throw invalid_user_input_exceptiont(
-        "Replacement function " + id2string(p.second) + " needs to be present",
+        "replacement function " + id2string(p.second) + " needs to be present",
         "--replace-calls");
 
     auto it1 = goto_functions.function_map.find(p.first);
@@ -168,7 +168,7 @@ void replace_callst::check_replacement_map(
     {
       if(!base_type_eq(it1->second.type, it2->second.type, ns))
         throw invalid_user_input_exceptiont(
-          "Functions " + id2string(p.first) + " and " + id2string(p.second) +
+          "functions " + id2string(p.first) + " and " + id2string(p.second) +
             " are not type-compatible",
           "--replace-calls");
     }

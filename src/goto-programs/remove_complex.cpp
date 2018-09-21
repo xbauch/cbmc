@@ -32,7 +32,6 @@ static exprt complex_member(const exprt &expr, irep_idt id)
   }
   else
   {
-    PRECONDITION(expr.type().id() == ID_struct);
     const struct_typet &struct_type=
       to_struct_type(expr.type());
     PRECONDITION(struct_type.components().size() == 2);
@@ -229,13 +228,11 @@ static void remove_complex(exprt &expr)
 
   if(expr.id()==ID_complex_real)
   {
-    static_cast<void>(to_complex_real_expr(expr));
-    expr=complex_member(expr.op0(), ID_real);
+    expr = complex_member(to_complex_real_expr(expr).op(), ID_real);
   }
   else if(expr.id()==ID_complex_imag)
   {
-    static_cast<void>(to_complex_imag_expr(expr));
-    expr=complex_member(expr.op0(), ID_imag);
+    expr = complex_member(to_complex_imag_expr(expr).op(), ID_imag);
   }
 
   remove_complex(expr.type());

@@ -116,7 +116,7 @@ static void remove_vector(exprt &expr)
     else if(expr.id()==ID_unary_minus || expr.id()==ID_bitnot)
     {
       DATA_INVARIANT(
-        expr.operands().size() == 1, "unary operators have one operands");
+        expr.operands().size() == 1, "unary operators have one operand");
       remove_vector(expr.type());
       array_typet array_type=to_array_type(expr.type());
 

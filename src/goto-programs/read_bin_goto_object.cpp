@@ -147,7 +147,7 @@ static bool read_bin_goto_object_v4(
         rev_target_mapt::const_iterator entry=rev_target_map.find(n);
         INVARIANT(
           entry != rev_target_map.end(),
-          "Something from the target map should also be in the reverse target "
+          "something from the target map should also be in the reverse target "
           "map");
         ins->targets.push_back(entry->second);
       }
