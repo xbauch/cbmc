@@ -224,6 +224,18 @@ bool cmdlinet::parse(int argc, const char **argv, const char *optstring)
         }
         else
           options[*optnr].values.push_back(argv[i]+2);
+
+        auto &my_values = options[*optnr].values;
+        if(my_values.back().find(':') != std::string::npos)
+        {
+          std::istringstream multiple_values(my_values.back());
+          my_values.pop_back();
+          std::string single_value;
+          while(std::getline(multiple_values, single_value, ':'))
+          {
+            my_values.push_back(single_value);
+          }
+        }
       }
     }
   }

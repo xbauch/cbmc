@@ -1,6 +1,6 @@
 CORE
 main.c
---fp-reachability-slice c
+--fp-reachability-slice b:c
 ^EXIT=0$
 ^SIGNAL=0$
 --

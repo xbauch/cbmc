@@ -89,13 +89,12 @@ void reachability_slicert::fixedpoint_to_assertions(
       {
         // This is an end-of-function -> successor-of-callsite edge.
         // Queue both the caller and the end of the callee.
-        INVARIANT(
-          std::prev(node.PC)->is_function_call(),
-          "all function return edges should point to the successor of a "
-          "FUNCTION_CALL instruction");
-        stack.emplace_back(edge.first, true);
-        stack.emplace_back(
-          cfg.entry_map[std::prev(node.PC)], caller_is_known);
+        if(std::prev(node.PC)->is_function_call())
+        {
+          stack.emplace_back(edge.first, true);
+          stack.emplace_back(
+            cfg.entry_map[std::prev(node.PC)], caller_is_known);
+        }
       }
       else if(pred_node.PC->is_function_call())
       {
@@ -196,11 +195,12 @@ void reachability_slicert::slice(goto_functionst &goto_functions)
     {
       Forall_goto_program_instructions(i_it, f_it->second.body)
       {
-        const cfgt::nodet &e=cfg[cfg.entry_map[i_it]];
+        cfgt::nodet &e = cfg[cfg.entry_map[i_it]];
         if(
           !e.reaches_assertion && !e.reachable_from_assertion &&
           !i_it->is_end_function())
           i_it->make_assumption(false_exprt());
+        e.reaches_assertion = e.reachable_from_assertion = false;
       }
 
       // replace unreachable code by skip
