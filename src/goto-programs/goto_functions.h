@@ -118,6 +118,19 @@ public:
     for(const auto &fun : other.function_map)
       function_map[fun.first].copy_from(fun.second);
   }
+
+  /// Check that the goto functions are well-formed
+  ///
+  /// The validation mode indicates whether well-formedness check failures are
+  /// reported via DATA_INVARIANT violations or exceptions.
+  void validate(const namespacet &ns, const validation_modet vm) const
+  {
+    for(const auto &entry : function_map)
+    {
+      const goto_functiont &goto_function = entry.second;
+      goto_function.validate(ns, vm);
+    }
+  }
 };
 
 #define Forall_goto_functions(it, functions) \
