@@ -668,6 +668,91 @@ bool goto_programt::instructiont::equals(const instructiont &other) const
   // clang-format on
 }
 
+void goto_programt::instructiont::validate(
+  const namespacet &ns,
+  const validation_modet vm) const
+{
+  validate_code_full_pick(code, ns, vm);
+  validate_expr_full_pick(guard, ns, vm);
+
+  auto evaluates_to_boolean = [](const exprt &e) -> bool {
+    //typecast to Boolean
+    if(e.id() == ID_typecast)
+      return e.type().id() == ID_bool;
+
+    //Boolean constants
+    if(e.id() == ID_true || e.id() == ID_false)
+      return true;
+    if(e.id() == ID_constant && e.type().id() == ID_bool)
+      return true;
+
+    //Symbols
+    if(e.id() == ID_symbol)
+    {
+      if(e.type().id() == ID_code) //function call
+        return to_code_type(e.type()).return_type().id() == ID_bool;
+      else //Boolean variable
+        return e.type().id() == ID_bool;
+    }
+
+    //arithmetic relations
+    if(e.id() == ID_equal || e.id() == ID_notequal)
+      return true;
+    if(e.id() == ID_ieee_float_equal || e.id() == ID_ieee_float_notequal)
+      return true;
+    if(e.id() == ID_ge || e.id() == ID_gt)
+      return true;
+    if(e.id() == ID_le || e.id() == ID_lt)
+      return true;
+
+    //propositional operators
+    if(
+      e.id() == ID_not || e.id() == ID_and || e.id() == ID_or ||
+      e.id() == ID_implies)
+      return true;
+    if(e.id() == ID_exists || e.id() == ID_forall)
+      return true;
+
+    //weird
+    if(
+      e.id() == ID_isfinite || e.id() == ID_isnormal || e.id() == ID_isinf ||
+      e.id() == ID_isnan)
+      return true;
+
+    return false;
+  };
+
+  switch(type)
+  {
+  case ASSIGN:
+    DATA_CHECK(
+      code.get_statement() == ID_assign,
+      "assign instruction should contain an assign statement");
+    DATA_CHECK(targets.empty(), "assign instruction should not have a target");
+    break;
+  case ASSUME:
+    DATA_CHECK_WITH_DIAGNOSTICS(
+      targets.empty(),
+      "assume instruction should not have a target",
+      source_location);
+    DATA_CHECK_WITH_DIAGNOSTICS(
+      evaluates_to_boolean(guard),
+      "assuming non-boolean condition\n" + guard.pretty(),
+      source_location);
+  case ASSERT:
+    DATA_CHECK_WITH_DIAGNOSTICS(
+      targets.empty(),
+      "assert instruction should not have a target",
+      source_location);
+    DATA_CHECK_WITH_DIAGNOSTICS(
+      evaluates_to_boolean(guard),
+      "asserting non-boolean condition\n" + guard.pretty(),
+      source_location);
+  default:
+    break;
+  }
+}
+
 bool goto_programt::equals(const goto_programt &other) const
 {
   if(instructions.size() != other.instructions.size())

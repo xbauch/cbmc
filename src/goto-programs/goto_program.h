@@ -404,24 +404,7 @@ public:
     ///
     /// The validation mode indicates whether well-formedness check failures are
     /// reported via DATA_INVARIANT violations or exceptions.
-    void validate(const namespacet &ns, const validation_modet vm) const
-    {
-      validate_code_full_pick(code, ns, vm);
-      validate_expr_full_pick(guard, ns, vm);
-
-      switch(type)
-      {
-      case ASSIGN:
-        DATA_CHECK(
-          code.get_statement() == ID_assign,
-          "assign instruction should contain an assign statement");
-        DATA_CHECK(
-          targets.empty(), "assign instruction should not have a target");
-        break;
-      default:
-        break;
-      }
-    }
+    void validate(const namespacet &ns, const validation_modet vm) const;
   };
 
   // Never try to change this to vector-we mutate the list while iterating
