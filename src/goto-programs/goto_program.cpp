@@ -676,24 +676,21 @@ void goto_programt::instructiont::validate(
   validate_expr_full_pick(guard, ns, vm);
 
   auto evaluates_to_boolean = [](const exprt &e) -> bool {
-    //typecast to Boolean
+    if(e.type().id() != ID_bool)
+      return false;
+
     if(e.id() == ID_typecast)
       return e.type().id() == ID_bool;
 
     //Boolean constants
     if(e.id() == ID_true || e.id() == ID_false)
       return true;
-    if(e.id() == ID_constant && e.type().id() == ID_bool)
+    if(e.id() == ID_constant)
       return true;
 
     //Symbols
     if(e.id() == ID_symbol)
-    {
-      if(e.type().id() == ID_code) //function call
-        return to_code_type(e.type()).return_type().id() == ID_bool;
-      else //Boolean variable
-        return e.type().id() == ID_bool;
-    }
+      return true;
 
     //arithmetic relations
     if(e.id() == ID_equal || e.id() == ID_notequal)
