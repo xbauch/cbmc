@@ -755,12 +755,28 @@ void goto_programt::instructiont::validate(
     for(const auto &t : targets)
     {
       DATA_CHECK_WITH_DIAGNOSTICS(
-        t->is_target(), "goto target has to be a target", source_location);
+        t->is_target() && t->target_number != 0,
+        "goto target has to be a target",
+        source_location);
     }
     DATA_CHECK_WITH_DIAGNOSTICS(
       evaluates_to_boolean(guard),
       "goto with non-boolean condition\n" + guard.pretty(),
       source_location);
+    break;
+  case FUNCTION_CALL:
+    DATA_CHECK_WITH_DIAGNOSTICS(
+      code.get_statement() == ID_function_call,
+      "function call instruction should contain a call statement",
+      source_location);
+    code.validate(ns, vm);
+    break;
+  case RETURN:
+    DATA_CHECK_WITH_DIAGNOSTICS(
+      code.get_statement() == ID_return,
+      "return instruction should contain a return statement",
+      source_location);
+    code.validate(ns, vm);
     break;
   default:
     break;

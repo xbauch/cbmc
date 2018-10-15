@@ -1052,6 +1052,40 @@ public:
   {
     return op2().operands();
   }
+
+  void check(const validation_modet vm = validation_modet::INVARIANT) const
+  {
+    DATA_CHECK(
+      operands().size() == 3, "function calls must have three operand");
+  }
+
+  void validate(
+    const namespacet &ns,
+    const validation_modet vm = validation_modet::INVARIANT) const
+  {
+    check(vm);
+    if(lhs().id() != ID_nil)
+      DATA_CHECK(
+        base_type_eq(lhs().type(), function().type(), ns),
+        "function returns expression of wrong type");
+  }
+
+  void validate_full(
+    const namespacet &ns,
+    const validation_modet vm = validation_modet::INVARIANT) const
+  {
+    for(const exprt &op : operands())
+    {
+      validate_expr_full_pick(op, ns, vm);
+    }
+
+    for(const exprt &arg : op2().operands())
+    {
+      validate_expr_full_pick(arg, ns, vm);
+    }
+
+    validate(ns, vm);
+  }
 };
 
 template<> inline bool can_cast_expr<code_function_callt>(const exprt &base)
@@ -1072,6 +1106,11 @@ inline code_function_callt &to_code_function_call(codet &code)
 {
   PRECONDITION(code.get_statement() == ID_function_call);
   return static_cast<code_function_callt &>(code);
+}
+
+inline void validate_expr(const code_function_callt &x)
+{
+  validate_operands(x, 3, "function calls must have three operands");
 }
 
 /// \ref codet representation of a "return from a function" statement.
@@ -1105,6 +1144,30 @@ public:
       return false; // backwards compatibility
     return return_value().is_not_nil();
   }
+
+  void check(const validation_modet vm = validation_modet::INVARIANT) const
+  {
+    DATA_CHECK(operands().size() == 1, "return must have one operand");
+  }
+
+  void validate(
+    const namespacet &ns,
+    const validation_modet vm = validation_modet::INVARIANT) const
+  {
+    check(vm);
+  }
+
+  void validate_full(
+    const namespacet &ns,
+    const validation_modet vm = validation_modet::INVARIANT) const
+  {
+    for(const exprt &op : operands())
+    {
+      validate_expr_full_pick(op, ns, vm);
+    }
+
+    validate(ns, vm);
+  }
 };
 
 template<> inline bool can_cast_expr<code_returnt>(const exprt &base)
@@ -1125,6 +1188,11 @@ inline code_returnt &to_code_return(codet &code)
 {
   PRECONDITION(code.get_statement() == ID_return);
   return static_cast<code_returnt &>(code);
+}
+
+inline void validate_expr(const code_returnt &x)
+{
+  validate_operands(x, 1, "return must have one operand");
 }
 
 /// \ref codet representation of a label for branch targets.

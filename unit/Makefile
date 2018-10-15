@@ -17,6 +17,7 @@ SRC += analyses/ai/ai.cpp \
        goto-programs/goto_trace_output.cpp \
        goto-programs/goto_program_assign.cpp \
        goto-programs/goto_program_goto_target.cpp \
+       goto-programs/goto_program_function_call.cpp \
        interpreter/interpreter.cpp \
        json/json_parser.cpp \
        path_strategies.cpp \
