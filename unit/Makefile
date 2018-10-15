@@ -16,6 +16,7 @@ SRC += analyses/ai/ai.cpp \
        analyses/does_remove_const/is_type_at_least_as_const_as.cpp \
        goto-programs/goto_trace_output.cpp \
        goto-programs/goto_program_assign.cpp \
+       goto-programs/goto_program_goto_target.cpp \
        interpreter/interpreter.cpp \
        json/json_parser.cpp \
        path_strategies.cpp \

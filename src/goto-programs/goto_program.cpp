@@ -736,6 +736,7 @@ void goto_programt::instructiont::validate(
       evaluates_to_boolean(guard),
       "assuming non-boolean condition\n" + guard.pretty(),
       source_location);
+    break;
   case ASSERT:
     DATA_CHECK_WITH_DIAGNOSTICS(
       targets.empty(),
@@ -745,6 +746,22 @@ void goto_programt::instructiont::validate(
       evaluates_to_boolean(guard),
       "asserting non-boolean condition\n" + guard.pretty(),
       source_location);
+    break;
+  case GOTO:
+    DATA_CHECK_WITH_DIAGNOSTICS(
+      has_target(),
+      "goto instruction expects at least one target",
+      source_location);
+    for(const auto &t : targets)
+    {
+      DATA_CHECK_WITH_DIAGNOSTICS(
+        t->is_target(), "goto target has to be a target", source_location);
+    }
+    DATA_CHECK_WITH_DIAGNOSTICS(
+      evaluates_to_boolean(guard),
+      "goto with non-boolean condition\n" + guard.pretty(),
+      source_location);
+    break;
   default:
     break;
   }
