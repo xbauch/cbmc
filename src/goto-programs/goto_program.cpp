@@ -769,14 +769,12 @@ void goto_programt::instructiont::validate(
       code.get_statement() == ID_function_call,
       "function call instruction should contain a call statement",
       source_location);
-    code.validate(ns, vm);
     break;
   case RETURN:
     DATA_CHECK_WITH_DIAGNOSTICS(
       code.get_statement() == ID_return,
       "return instruction should contain a return statement",
       source_location);
-    code.validate(ns, vm);
     break;
   default:
     break;

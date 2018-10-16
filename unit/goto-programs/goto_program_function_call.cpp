@@ -17,8 +17,9 @@ SCENARIO(
   GIVEN("A program with one function call")
   {
     symbol_tablet symbol_table;
-    const typet type1 = signedbv_typet(32);
-    const typet type2 = signedbv_typet(64);
+    const signedbv_typet type1(32);
+    const signedbv_typet type2(64);
+    const code_typet code_type({}, type1);
 
     symbolt var_symbol;
     irep_idt var_symbol_name = "a";
@@ -33,7 +34,7 @@ SCENARIO(
     symbolt fun_symbol;
     irep_idt fun_symbol_name = "foo";
     fun_symbol.name = fun_symbol_name;
-    symbol_exprt fun_foo(fun_symbol_name, type1);
+    symbol_exprt fun_foo(fun_symbol_name, code_type);
 
     goto_functiont goto_function;
     auto &instructions = goto_function.body.instructions;

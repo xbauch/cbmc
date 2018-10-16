@@ -16,6 +16,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include "expr.h"
 #include "expr_cast.h"
 #include "invariant.h"
+#include "std_types.h"
 #include "validate.h"
 #include "validate_code.h"
 
@@ -1056,7 +1057,7 @@ public:
   void check(const validation_modet vm = validation_modet::INVARIANT) const
   {
     DATA_CHECK(
-      operands().size() == 3, "function calls must have three operand");
+      operands().size() == 3, "function calls must have three operands");
   }
 
   void validate(
@@ -1064,9 +1065,14 @@ public:
     const validation_modet vm = validation_modet::INVARIANT) const
   {
     check(vm);
-    if(lhs().id() != ID_nil)
+    if(lhs().id() == ID_nil)
       DATA_CHECK(
-        base_type_eq(lhs().type(), function().type(), ns),
+        to_code_type(function().type()).return_type().id() == ID_nil,
+        "void function should not return value");
+    else
+      DATA_CHECK(
+        base_type_eq(
+          lhs().type(), to_code_type(function().type()).return_type(), ns),
         "function returns expression of wrong type");
   }
 
@@ -1077,11 +1083,6 @@ public:
     for(const exprt &op : operands())
     {
       validate_expr_full_pick(op, ns, vm);
-    }
-
-    for(const exprt &arg : op2().operands())
-    {
-      validate_expr_full_pick(arg, ns, vm);
     }
 
     validate(ns, vm);
