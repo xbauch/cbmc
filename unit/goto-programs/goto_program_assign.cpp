@@ -39,7 +39,7 @@ SCENARIO(
       instructions.back().make_assertion(x_le_10);
       THEN("The consistency check succeeds")
       {
-        goto_function.body.validate(ns, validation_modet::INVARIANT);
+        goto_function.body.validate(symbol_table, validation_modet::INVARIANT);
         REQUIRE(true);
       }
     }
@@ -53,7 +53,8 @@ SCENARIO(
         bool caught = false;
         try
         {
-          goto_function.body.validate(ns, validation_modet::EXCEPTION);
+          goto_function.body.validate(
+            symbol_table, validation_modet::EXCEPTION);
         }
         catch(incorrect_goto_program_exceptiont &e)
         {

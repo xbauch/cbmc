@@ -102,7 +102,7 @@ public:
   /// reported via DATA_INVARIANT violations or exceptions.
   void validate(const namespacet &ns, const validation_modet vm) const
   {
-    goto_functions.validate(ns, vm);
+    goto_functions.validate(symbol_table, vm);
     symbol_table.validate();
   }
 };

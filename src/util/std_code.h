@@ -373,6 +373,30 @@ public:
   }
 
   const irep_idt &get_identifier() const;
+
+  void check(const validation_modet vm = validation_modet::INVARIANT) const
+  {
+    DATA_CHECK(operands().size() == 1, "declaration must have one operand");
+    DATA_CHECK(
+      symbol().id() == ID_symbol,
+      "declaring a non-symbol: " + id2string(get_identifier()));
+  }
+
+  void validate(
+    const namespacet &ns,
+    const validation_modet vm = validation_modet::INVARIANT) const
+  {
+    check(vm);
+  }
+
+  void validate_full(
+    const namespacet &ns,
+    const validation_modet vm = validation_modet::INVARIANT) const
+  {
+    validate_expr_full_pick(symbol(), ns, vm);
+
+    validate(ns, vm);
+  }
 };
 
 template<> inline bool can_cast_expr<code_declt>(const exprt &base)
@@ -435,6 +459,31 @@ public:
   }
 
   const irep_idt &get_identifier() const;
+
+  void check(const validation_modet vm = validation_modet::INVARIANT) const
+  {
+    DATA_CHECK(
+      operands().size() == 1, "removal (code_deadt) must have one operand");
+    DATA_CHECK(
+      symbol().id() == ID_symbol,
+      "removing a non-symbol: " + id2string(get_identifier()) + "from scope");
+  }
+
+  void validate(
+    const namespacet &ns,
+    const validation_modet vm = validation_modet::INVARIANT) const
+  {
+    check(vm);
+  }
+
+  void validate_full(
+    const namespacet &ns,
+    const validation_modet vm = validation_modet::INVARIANT) const
+  {
+    validate_expr_full_pick(symbol(), ns, vm);
+
+    validate(ns, vm);
+  }
 };
 
 template<> inline bool can_cast_expr<code_deadt>(const exprt &base)
@@ -1067,7 +1116,7 @@ public:
     check(vm);
     if(lhs().id() == ID_nil)
       DATA_CHECK(
-        to_code_type(function().type()).return_type().id() == ID_nil,
+        to_code_type(function().type()).return_type().id() == ID_empty,
         "void function should not return value");
     else
       DATA_CHECK(
