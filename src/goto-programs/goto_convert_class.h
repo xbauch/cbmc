@@ -288,6 +288,10 @@ protected:
     const code_function_callt &code,
     goto_programt &dest,
     const irep_idt &mode);
+  void convert_function_call(
+    const side_effect_expr_function_callt &code,
+    goto_programt &dest,
+    const irep_idt &mode);
   void convert_start_thread(const codet &code, goto_programt &dest);
   void convert_end_thread(const codet &code, goto_programt &dest);
   void convert_atomic_begin(const codet &code, goto_programt &dest);

@@ -443,8 +443,14 @@ void goto_convertt::convert(
     convert_assert(to_code_assert(code), dest, mode);
   else if(statement==ID_assume)
     convert_assume(to_code_assume(code), dest, mode);
-  else if(statement==ID_function_call)
-    convert_function_call(to_code_function_call(code), dest, mode);
+  else if(statement == ID_function_call)
+  {
+    if(code.id() == ID_side_effect)
+      convert_function_call(
+        to_side_effect_expr_function_call(code), dest, mode);
+    else
+      convert_function_call(to_code_function_call(code), dest, mode);
+  }
   else if(statement==ID_label)
     convert_label(to_code_label(code), dest, mode);
   else if(statement==ID_gcc_local_label)

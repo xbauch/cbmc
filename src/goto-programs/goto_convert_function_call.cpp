@@ -34,6 +34,17 @@ void goto_convertt::convert_function_call(
     mode);
 }
 
+void goto_convertt::convert_function_call(
+  const side_effect_expr_function_callt &function_call,
+  goto_programt &dest,
+  const irep_idt &mode)
+{
+  exprt e;
+  e.make_nil();
+  do_function_call(
+    e, function_call.function(), function_call.arguments(), dest, mode);
+}
+
 void goto_convertt::do_function_call(
   const exprt &lhs,
   const exprt &function,
