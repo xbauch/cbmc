@@ -7,6 +7,9 @@ Author: Malte Mues <mail.mues@gmail.com>
 
 \*******************************************************************/
 
+/// \file
+/// High-level interface to gdb
+
 // clang-format off
 #if defined(__linux__) || \
     defined(__FreeBSD_kernel__) || \
@@ -97,7 +100,6 @@ void symbol_analyzert::analyze_symbol(const std::string &symbol_name)
   process_outstanding_assignments();
 }
 
-/// Get memory snapshot as C code
 std::string symbol_analyzert::get_snapshot_as_c_code()
 {
   code_blockt generated_code;
@@ -112,7 +114,6 @@ std::string symbol_analyzert::get_snapshot_as_c_code()
   return c_converter.convert(generated_code);
 }
 
-/// Get memory snapshot as symbol table
 symbol_tablet symbol_analyzert::get_snapshot_as_symbol_table()
 {
   symbol_tablet snapshot;
