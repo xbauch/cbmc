@@ -22,6 +22,8 @@ Author: Daniel Poetzl
 #include <util/symbol_table.h>
 
 #include "goto_harness_generator_factory.h"
+#include "recursive_initialization.h"
+
 
 void memory_snapshot_harness_generatort::handle_option(
   const std::string &option,
@@ -53,6 +55,10 @@ void memory_snapshot_harness_generatort::handle_option(
     {
       location_number = optionalt<unsigned>(safe_string2unsigned(start.back()));
     }
+  }
+  else if (option == "havoc-variables")
+  {
+    variables_to_havoc.insert(values.begin(), values.end());
   }
   else
   {
@@ -157,8 +163,13 @@ void memory_snapshot_harness_generatort::add_init_section(
 
 void memory_snapshot_harness_generatort::add_assignments_to_globals(
   const symbol_tablet &snapshot,
+  goto_modelt &goto_model,
   code_blockt &code) const
 {
+  recursive_initialization_configt recursive_initialization_config;
+  auto recursive_initialization = util_make_unique<recursive_initializationt>(
+    recursive_initialization_config, goto_model);
+
   for(const auto &pair : snapshot)
   {
     const symbolt &symbol = pair.second;
@@ -166,9 +177,15 @@ void memory_snapshot_harness_generatort::add_assignments_to_globals(
     if(!symbol.is_static_lifetime)
       continue;
 
-    code_assignt code_assign(symbol.symbol_expr(), symbol.value);
-
-    code.add(code_assign);
+    if(variables_to_havoc.count(symbol.base_name) == 0)
+    {
+      code_assignt code_assign(symbol.symbol_expr(), symbol.value);
+      code.add(code_assign);
+    }
+    else
+    {
+      recursive_initialization->initialize(symbol.symbol_expr(), 0, {}, code);
+    }
   }
 }
 
@@ -282,7 +299,7 @@ void memory_snapshot_harness_generatort::generate(
 
   code_blockt harness_function_body;
 
-  add_assignments_to_globals(snapshot, harness_function_body);
+  add_assignments_to_globals(snapshot, goto_model, harness_function_body);
 
   add_call_with_nondet_arguments(
     *called_function_symbol, harness_function_body);

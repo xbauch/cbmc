@@ -31,6 +31,8 @@ Author: Daniel Poetzl
   "--initial-location <func[:<n>]>\n"                                          \
   "                              use given function and location number as "   \
   "entry\n                              point\n"                               \
+  "--havoc-variables vars        initialise variables from vars to\n"          \
+  "                              non-deterministic values"                     \
   // MEMORY_SNAPSHOT_HARNESS_GENERATOR_HELP
 // clang-format on
 
@@ -63,6 +65,7 @@ protected:
 
   void add_assignments_to_globals(
     const symbol_tablet &snapshot,
+    goto_modelt &goto_model,
     code_blockt &code) const;
 
   void add_call_with_nondet_arguments(
@@ -75,6 +78,7 @@ protected:
 
   irep_idt function;
   optionalt<unsigned> location_number;
+  std::unordered_set<irep_idt> variables_to_havoc;
 
   message_handlert &message_handler;
 };
