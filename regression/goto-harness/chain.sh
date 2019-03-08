@@ -23,8 +23,10 @@ if [ -e "${name}-mod.gb" ] ; then
   rm -f "${name}-mod.gb"
 fi
 
+
 # `# some comment` is an inline comment - basically, cause bash to execute an empty command
 
+$cbmc --show-goto-functions "${name}.gb"
 $goto_harness "${name}.gb" "${name}-mod.gb" --harness-function-name $entry_point ${args}
 $cbmc --function $entry_point "${name}-mod.gb" \
   --pointer-check `# because we want to see out of bounds errors` \
