@@ -21,7 +21,7 @@ int main(int argc, const char **argv)
 
 int main()
 {
-  throw "The memory analyzer is only supported on Unices\n";
+  throw "the memory analyzer is only supported on Unices\n";
 }
 
 #endif

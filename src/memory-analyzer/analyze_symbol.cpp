@@ -149,7 +149,6 @@ symbol_tablet symbol_analyzert::get_snapshot_as_symbol_table()
 
 void symbol_analyzert::add_assignment(const exprt &lhs, const exprt &value)
 {
-  //assignments.add(code_assignt(lhs, value));
   assignments.push_back(std::make_pair(lhs, value));
 }
 
@@ -177,8 +176,8 @@ exprt symbol_analyzert::get_char_pointer_value(
     symbol_exprt dummy(pointer_typet(init.type(), config.ansi_c.pointer_width));
     code_blockt assignments;
 
-    const symbol_exprt new_symbol = to_symbol_expr(
-      allocate_objects.allocate_automatic_local_object(
+    const symbol_exprt new_symbol =
+      to_symbol_expr(allocate_objects.allocate_automatic_local_object(
         assignments, dummy, init.type()));
 
     add_assignment(new_symbol, init);
@@ -213,8 +212,8 @@ exprt symbol_analyzert::get_non_char_pointer_value(
     symbol_exprt dummy(expr.type());
     code_blockt assignments;
 
-    const symbol_exprt new_symbol = to_symbol_expr(
-      allocate_objects.allocate_automatic_local_object(
+    const symbol_exprt new_symbol =
+      to_symbol_expr(allocate_objects.allocate_automatic_local_object(
         assignments, dummy, target_type));
 
     dereference_exprt dereference_expr(expr);
