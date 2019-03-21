@@ -54,8 +54,7 @@ bool memory_model_tsot::program_order_is_relaxed(
 void memory_model_tsot::program_order(
   symex_target_equationt &equation)
 {
-  per_thread_mapt per_thread_map;
-  build_per_thread_map(equation, per_thread_map);
+  per_thread_mapt per_thread_map = build_per_thread_map(equation);
 
   thread_spawn(equation, per_thread_map);
 

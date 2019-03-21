@@ -13,6 +13,8 @@ Author: Michael Tautschnig, michael.tautschnig@cs.ox.ac.uk
 
 #include <util/std_expr.h>
 
+#include <utility>
+
 void memory_model_sct::operator()(symex_target_equationt &equation)
 {
   statistics() << "Adding SC constraints" << eom;
@@ -42,35 +44,14 @@ bool memory_model_sct::program_order_is_relaxed(
   return false;
 }
 
-void memory_model_sct::build_per_thread_map(
+void memory_model_sct::populate_thread_maps(
   const symex_target_equationt &equation,
-  per_thread_mapt &dest) const
+  per_thread_mapt &per_thread_map,
+  spawning_mapt &spawning_map) const
 {
+  unsigned next_thread_id = 0;
+
   // this orders the events within a thread
-
-  for(eventst::const_iterator
-      e_it=equation.SSA_steps.begin();
-      e_it!=equation.SSA_steps.end();
-      e_it++)
-  {
-    // concurrency-related?
-    if(!e_it->is_shared_read() &&
-       !e_it->is_shared_write() &&
-       !e_it->is_spawn() &&
-       !e_it->is_memory_barrier()) continue;
-
-    dest[e_it->source.thread_nr].push_back(e_it);
-  }
-}
-
-void memory_model_sct::thread_spawn(
-  symex_target_equationt &equation,
-  const per_thread_mapt &per_thread_map)
-{
-  // thread spawn: the spawn precedes the first
-  // instruction of the new thread in program order
-
-  unsigned next_thread_id=0;
   for(eventst::const_iterator
       e_it=equation.SSA_steps.begin();
       e_it!=equation.SSA_steps.end();
@@ -78,25 +59,13 @@ void memory_model_sct::thread_spawn(
   {
     if(e_it->is_spawn())
     {
-      per_thread_mapt::const_iterator next_thread=
-        per_thread_map.find(++next_thread_id);
-      if(next_thread==per_thread_map.end())
-        continue;
+      spawning_map.emplace_back(e_it, ++next_thread_id);
+    }
 
-      // add a constraint for all events,
-      // considering regression/cbmc-concurrency/pthread_create_tso1
-      for(event_listt::const_iterator
-          n_it=next_thread->second.begin();
-          n_it!=next_thread->second.end();
-          n_it++)
-      {
-        if(!(*n_it)->is_memory_barrier())
-          add_constraint(
-            equation,
-            before(e_it, *n_it),
-            "thread-spawn",
-            e_it->source);
-      }
+    // concurrency-related?
+    if(e_it->is_shared_read() || e_it->is_shared_write() || e_it->is_spawn())
+    {
+      per_thread_map[e_it->source.thread_nr].push_back(e_it);
     }
   }
 }
@@ -146,49 +115,40 @@ void memory_model_sct::thread_spawn(
 }
 #endif
 
-void memory_model_sct::program_order(
-  symex_target_equationt &equation)
+void memory_model_sct::program_order(symex_target_equationt &equation)
 {
   per_thread_mapt per_thread_map;
-  build_per_thread_map(equation, per_thread_map);
+  spawning_mapt spawning_map;
+  populate_thread_maps(equation, per_thread_map, spawning_map);
 
-  thread_spawn(equation, per_thread_map);
-
-  // iterate over threads
-
-  for(per_thread_mapt::const_iterator
-      t_it=per_thread_map.begin();
-      t_it!=per_thread_map.end();
-      t_it++)
+  // each spawn event must have happened before every event of the thread being
+  // spawned
+  for(const auto &spawn_spawned_pair : spawning_map)
   {
-    const event_listt &events=t_it->second;
+    const auto &spawn_event = spawn_spawned_pair.first;
+    const auto &spawned_thread = per_thread_map.at(spawn_spawned_pair.second);
 
-    // iterate over relevant events in the thread
-
-    event_it previous=equation.SSA_steps.end();
-
-    for(event_listt::const_iterator
-        e_it=events.begin();
-        e_it!=events.end();
-        e_it++)
+    for(const auto &spawned_thread_event : spawned_thread)
     {
-      if((*e_it)->is_memory_barrier())
-         continue;
-
-      if(previous==equation.SSA_steps.end())
-      {
-        // first one?
-        previous=*e_it;
-        continue;
-      }
-
       add_constraint(
         equation,
-        before(previous, *e_it),
-        "po",
-        (*e_it)->source);
+        before(spawn_event, spawned_thread_event),
+        "thread-spawn",
+        spawn_event->source);
+    }
+  }
 
-      previous=*e_it;
+  // each thread's events are ordered pair-wise
+  for(const auto &thread_events : per_thread_map)
+  {
+    // iterate over relevant events in the thread
+    for(size_t i = 0; i < thread_events.second.size() - 1; i++)
+    {
+      const auto &this_event = thread_events.second[i];
+      const auto &next_event = thread_events.second[i + 1];
+
+      add_constraint(
+        equation, before(next_event, this_event), "po", next_event->source);
     }
   }
 }

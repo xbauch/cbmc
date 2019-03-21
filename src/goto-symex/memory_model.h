@@ -56,8 +56,9 @@ protected:
     const event_it &w,
     symex_target_equationt &equation);
 
-  // maps thread numbers to an event list
+  // maps threads to a lists of their concurrency-relevant events
   typedef std::map<unsigned, event_listt> per_thread_mapt;
+  typedef std::vector<std::pair<event_it, unsigned>> spawning_mapt;
 };
 
 #endif // CPROVER_GOTO_SYMEX_MEMORY_MODEL_H

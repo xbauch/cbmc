@@ -30,12 +30,20 @@ protected:
     partial_order_concurrencyt::event_it e1,
     partial_order_concurrencyt::event_it e2) const;
 
-  void build_per_thread_map(
+  /// Order concurrency-relevant events within each thread and match spawn event
+  ///   to its target thread
+  /// \param equation: the symex equation containing the events in order
+  /// \param per_thread_map: thread id to relevant events
+  /// \param spawning_map : spawn event to spawned thread id
+  void populate_thread_maps(
     const symex_target_equationt &equation,
-    per_thread_mapt &dest) const;
-  void thread_spawn(
-    symex_target_equationt &equation,
-    const per_thread_mapt &per_thread_map);
+    per_thread_mapt &per_thread_map,
+    spawning_mapt &spawning_map) const;
+
+  /// Add two sets of constrains:
+  /// 1. Each spawn event happened before every event of the spawned thread
+  /// 2. Every two subsequent events
+  /// \param equation:
   void program_order(symex_target_equationt &equation);
   void from_read(symex_target_equationt &equation);
   void write_serialization_external(symex_target_equationt &equation);
