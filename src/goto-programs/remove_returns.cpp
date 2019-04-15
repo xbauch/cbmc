@@ -19,11 +19,15 @@ Date:   September 2009
 
 #include "remove_skip.h"
 
+#include "remove_function_pointers.h"
+
 class remove_returnst
 {
 public:
-  explicit remove_returnst(symbol_table_baset &_symbol_table):
-    symbol_table(_symbol_table)
+  explicit remove_returnst(
+    message_handlert &m,
+    symbol_table_baset &_symbol_table)
+    : log(m), symbol_table(_symbol_table)
   {
   }
 
@@ -37,8 +41,18 @@ public:
   void restore(
     goto_functionst &goto_functions);
 
+  /// Build the internal map to know the potential function pointer targets
+  /// \param goto_model: The model to search for the targets
+  void build_fp_targets(goto_modelt &goto_model)
+  {
+    possible_fp_targets_map =
+      get_function_pointer_targets(log.get_message_handler(), goto_model);
+  }
+
 protected:
+  messaget log;
   symbol_table_baset &symbol_table;
+  possible_fp_targets_mapt possible_fp_targets_map;
 
   void replace_returns(
     const irep_idt &function_id,
@@ -62,6 +76,15 @@ protected:
   /// \param goto_program: the GOTO program to be updated
   void do_function_call_complete(
     goto_programt::targett target,
+    goto_programt &goto_program);
+
+  /// Remove return of a complete function call of a function pointer
+  /// \param target: the function call instruction iterator
+  /// \param possible_fp_targets: functions the pointer may point to
+  /// \param goto_program: the GOTO program to be updated
+  void do_function_call_complete(
+    goto_programt::targett target,
+    const possible_fp_targetst &possible_fp_targets,
     goto_programt &goto_program);
 
   /// Remove return of a stub function call
@@ -163,8 +186,13 @@ bool remove_returnst::do_function_calls(
       continue;
 
     code_function_callt function_call = i_it->get_function_call();
+
+    const auto &function_id =
+      to_symbol_expr(function_call.function()).get_identifier();
+
     INVARIANT(
-      function_call.function().id() == ID_symbol,
+      function_call.function().id() == ID_symbol ||
+        function_call.function().id() == ID_dereference,
       "indirect function calls should have been removed prior to running "
       "remove-returns");
     // Do we return anything?
@@ -174,11 +202,24 @@ bool remove_returnst::do_function_calls(
       !function_call.lhs().is_not_nil())
       continue;
 
-    if(function_is_stub(
-         to_symbol_expr(function_call.function()).get_identifier()))
+    if(function_is_stub(function_id))
+    {
+      // stub:
+      // lhs=f(..) => f(..); lhs=nondet;
       do_function_call_stub(i_it, goto_program);
-    else
+    }
+    else if(function_call.function().id() == ID_symbol)
+    {
+      // lhs=f(..) => f(..); lhs=f#return_value;
       do_function_call_complete(i_it, goto_program);
+    }
+    else
+    {
+      // f may point to {f1,f2,..}=possible_fp_targets_map[function_id]
+      // lhs=*f(..) => *f(..); lhs = (f == f1 ? f1#return_value : f == f2 ? ..);
+      do_function_call_complete(
+        i_it, possible_fp_targets_map[function_id], goto_program);
+    }
 
     // fry the previous assignment
     function_call.lhs().make_nil();
@@ -229,10 +270,11 @@ void remove_returnst::operator()(
 
 /// removes returns
 void remove_returns(
+  message_handlert &m,
   symbol_table_baset &symbol_table,
   goto_functionst &goto_functions)
 {
-  remove_returnst rr(symbol_table);
+  remove_returnst rr(m, symbol_table);
   rr(goto_functions);
 }
 
@@ -248,17 +290,19 @@ void remove_returns(
 ///   callee has been or will be given a body. It should return true if so, or
 ///   false if the function will remain a bodyless stub.
 void remove_returns(
+  message_handlert &m,
   goto_model_functiont &goto_model_function,
   function_is_stubt function_is_stub)
 {
-  remove_returnst rr(goto_model_function.get_symbol_table());
+  remove_returnst rr(m, goto_model_function.get_symbol_table());
   rr(goto_model_function, function_is_stub);
 }
 
 /// removes returns
-void remove_returns(goto_modelt &goto_model)
+void remove_returns(message_handlert &m, goto_modelt &goto_model)
 {
-  remove_returnst rr(goto_model.symbol_table);
+  remove_returnst rr(m, goto_model.symbol_table);
+  rr.build_fp_targets(goto_model);
   rr(goto_model.goto_functions);
 }
 
@@ -381,9 +425,9 @@ void remove_returnst::restore(goto_functionst &goto_functions)
 }
 
 /// restores return statements
-void restore_returns(goto_modelt &goto_model)
+void restore_returns(message_handlert &m, goto_modelt &goto_model)
 {
-  remove_returnst rr(goto_model.symbol_table);
+  remove_returnst rr(m, goto_model.symbol_table);
   rr.restore(goto_model.goto_functions);
 }
 
@@ -414,6 +458,53 @@ void remove_returnst::do_function_call_complete(
 
   goto_program.insert_after(
     t_a, goto_programt::make_dead(*return_value, target->source_location));
+}
+
+void remove_returnst::do_function_call_complete(
+  goto_programt::targett target,
+  const possible_fp_targetst &possible_fp_targets,
+  goto_programt &goto_program)
+{
+  const auto &function_call = target->get_function_call();
+
+  cond_exprt rhs(exprt::operandst{}, function_call.lhs().type());
+  std::vector<symbol_exprt> return_values;
+
+  for(const auto &target_expr : possible_fp_targets)
+  {
+    irep_idt target_id = target_expr.get_identifier();
+    const symbolt *target_symbol = symbol_table.lookup(target_id);
+    CHECK_RETURN(target_symbol);
+
+    // The return type in the definition of the function may differ
+    // from the return type in the declaration.  We therefore do a
+    // cast.
+    optionalt<symbol_exprt> return_value =
+      get_or_create_return_value_symbol(target_id);
+    CHECK_RETURN(return_value.has_value());
+    return_values.push_back(*return_value);
+
+    rhs.add_case(
+      equal_exprt{function_call.function(),
+                  address_of_exprt{target_symbol->symbol_expr()}},
+      *return_value);
+  }
+
+  // replace "lhs=*f(...)" by
+  //
+  //  f*(...);
+  //  lhs = (f == f1 ? f1#return_value : f == f2 ? f2#return_value .. );
+  //  DEAD f1#return_value;
+  //  DEAD f2#return_value;
+  //  ..
+  goto_programt::targett t_a = goto_program.insert_after(
+    target,
+    goto_programt::make_assignment(
+      code_assignt{function_call.lhs(), rhs}, target->source_location));
+
+  for(const auto &return_value : return_values)
+    t_a = goto_program.insert_after(
+      t_a, goto_programt::make_dead(return_value, target->source_location));
 }
 
 void remove_returnst::do_function_call_stub(
