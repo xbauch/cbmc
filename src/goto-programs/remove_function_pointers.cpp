@@ -381,21 +381,14 @@ remove_function_pointerst::get_function_pointer_targets(
 
   try_remove_const_fp(goto_program, functions, function.pointer());
 
-  if(does_remove_const_first)
-  {
-  }
-  else
-  {
-    if(functions.size() == 1)
-      return functions;
-  }
+  if(!does_remove_const_first && functions.size() == 1)
+    return functions;
 
   if(!found_functions)
   {
     if(!only_resolve_const_fps)
-    {
       return functions;
-    }
+
     // get all type-compatible functions
     // whose address is ever taken
     for(const auto &type_pair : type_map)
@@ -432,32 +425,23 @@ void remove_function_pointerst::remove_function_pointer(
   const auto functions =
     get_function_pointer_targets(goto_program, const_target);
 
-  if(does_remove_const_first)
+  if(!does_remove_const_first && functions.size() == 1)
   {
-  }
-  else
-  {
-    if(functions.size() == 1)
-    {
-      auto call = target->get_function_call();
-      call.function() = *functions.cbegin();
-      target->set_function_call(call);
-      return;
-    }
+    auto call = target->get_function_call();
+    call.function() = *functions.cbegin();
+    target->set_function_call(call);
+    return;
   }
 
-  if(!found_functions)
+  if(!found_functions && only_resolve_const_fps)
   {
-    if(only_resolve_const_fps)
-    {
-      // If this mode is enabled, we only remove function pointers
-      // that we can resolve either to an exact function, or an exact subset
-      // (e.g. a variable index in a constant array).
-      // Since we haven't found functions, we would now resort to
-      // replacing the function pointer with any function with a valid signature
-      // Since we don't want to do that, we abort.
-      return;
-    }
+    // If this mode is enabled, we only remove function pointers
+    // that we can resolve either to an exact function, or an exact subset
+    // (e.g. a variable index in a constant array).
+    // Since we haven't found functions, we would now resort to
+    // replacing the function pointer with any function with a valid signature
+    // Since we don't want to do that, we abort.
+    return;
   }
 
   remove_function_pointer(goto_program, function_id, target, functions);
