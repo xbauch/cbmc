@@ -94,8 +94,9 @@ protected:
 
   // Internal variables for communication between function pointer collection
   //   and the call modification.
-  bool found_functions;
-  bool does_remove_const_first;
+  bool remove_const_found_functions;
+  bool does_remove_const_success;
+  bool only_remove_const_function_pointers_called;
 
   /// Replace a call to a dynamic function at location
   /// target in the given goto-program by determining
@@ -352,14 +353,15 @@ void remove_function_pointerst::try_remove_const_fp(
 
   does_remove_constt const_removal_check(goto_program, ns);
   const auto does_remove_const = const_removal_check();
-  does_remove_const_first = does_remove_const.first;
+  does_remove_const_success = does_remove_const.first;
 
-  if(does_remove_const_first)
+  if(does_remove_const_success)
   {
     log.warning().source_location = does_remove_const.second;
     log.warning() << "cast from const to non-const pointer found, "
                   << "only worst case function pointer removal will be done."
                   << messaget::eom;
+    remove_const_found_functions = false;
   }
   else
   {
@@ -370,8 +372,8 @@ void remove_function_pointerst::try_remove_const_fp(
     // however, it is possible for found_functions to be true and functions
     // to be empty (this happens if the pointer can only resolve to the null
     // pointer)
-    found_functions = fpr(pointer, functions);
-    CHECK_RETURN(found_functions || functions.empty());
+    remove_const_found_functions = fpr(pointer, functions);
+    CHECK_RETURN(remove_const_found_functions || functions.empty());
   }
 }
 
@@ -403,17 +405,14 @@ remove_function_pointerst::get_function_pointer_targets(
   const auto &refined_call_type = refine_call_type(function.type(), code);
 
   functionst functions;
-
   try_remove_const_fp(goto_program, functions, function.pointer());
 
-  if(!does_remove_const_first && functions.size() == 1)
-    return functions;
-
-  if(!found_functions)
+  only_remove_const_function_pointers_called =
+    !does_remove_const_success && functions.size() == 1;
+  if(
+    !only_remove_const_function_pointers_called &&
+    !remove_const_found_functions && !only_resolve_const_fps)
   {
-    if(!only_resolve_const_fps)
-      return functions;
-
     // get all type-compatible functions
     // whose address is ever taken
     for(const auto &type_pair : type_map)
@@ -450,15 +449,13 @@ void remove_function_pointerst::remove_function_pointer(
   const auto functions =
     get_function_pointer_targets(goto_program, const_target);
 
-  if(!does_remove_const_first && functions.size() == 1)
+  if(only_remove_const_function_pointers_called)
   {
     auto call = target->get_function_call();
     call.function() = *functions.cbegin();
     target->set_function_call(call);
-    return;
   }
-
-  if(!found_functions && only_resolve_const_fps)
+  else if(remove_const_found_functions || !only_resolve_const_fps)
   {
     // If this mode is enabled, we only remove function pointers
     // that we can resolve either to an exact function, or an exact subset
@@ -466,10 +463,8 @@ void remove_function_pointerst::remove_function_pointer(
     // Since we haven't found functions, we would now resort to
     // replacing the function pointer with any function with a valid signature
     // Since we don't want to do that, we abort.
-    return;
+    remove_function_pointer(goto_program, function_id, target, functions);
   }
-
-  remove_function_pointer(goto_program, function_id, target, functions);
 }
 
 void remove_function_pointerst::remove_function_pointer(
