@@ -318,7 +318,19 @@ TEST_CASE("Sharing map views", "[core][util]")
 
     sort_view();
 
-    REQUIRE((pairs[3] == pt("l", "3")));
+    dstringt i("i");
+    dstringt j("j");
+    dstringt k("k");
+    dstringt l("l");
+
+    size_t index = 0;
+    if(i < l)
+      index++;
+    if(j < l)
+      index++;
+    if(k < l)
+      index++;
+    REQUIRE((pairs[index] == pt("l", "3")));
   }
 
   SECTION("Delta view (no sharing, same keys)")
