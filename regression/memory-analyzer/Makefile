@@ -9,10 +9,10 @@ clean:
 	$(RM) tests.log
 
 test:
-	@../test.pl -e -p -c "../chain.sh $(MEMORY_ANALYZER_EXE)"
+	@../test.pl -e -p -c "../chain.sh $(MEMORY_ANALYZER_EXE) $(GOTO_GCC_EXE)"
 
 tests.log: ../test.pl
-	@../test.pl -e -p -c "../chain.sh $(MEMORY_ANALYZER_EXE)"
+	@../test.pl -e -p -c "../chain.sh $(MEMORY_ANALYZER_EXE) $(GOTO_GCC_EXE)"
 
 show:
 	@for dir in *; do \
