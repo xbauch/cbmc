@@ -37,8 +37,7 @@ memory_analyzer_parse_optionst::memory_analyzer_parse_optionst(
       MEMORY_ANALYZER_OPTIONS,
       argc,
       argv,
-      ui_message_handler),
-    ui_message_handler(cmdline, std::string("MEMORY-ANALYZER ") + CBMC_VERSION),
+      std::string("MEMORY-ANALYZER ") + CBMC_VERSION),
     message(ui_message_handler)
 {
 }
