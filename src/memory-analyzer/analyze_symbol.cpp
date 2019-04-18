@@ -32,7 +32,7 @@ void gdb_value_extractort::analyze_symbols(
   // record addresses of given symbols
   for(const auto &id : symbols)
   {
-    const symbol_exprt symbol_expr(id);
+    const symbol_exprt symbol_expr(id, typet());
     const address_of_exprt aoe(symbol_expr);
 
     const std::string c_expr = c_converter.convert(aoe);
