@@ -83,6 +83,13 @@ public:
   {
   }
 
+  dstringt(
+    const std::string::const_iterator &from,
+    const std::string::const_iterator &to)
+    : no(get_string_container()[std::string(from, to)])
+  {
+  }
+
   // access
 
   bool empty() const
@@ -181,6 +188,17 @@ public:
   std::string::const_iterator end() const
   {
     return as_string().end();
+  }
+
+  // reverse iterators for the underlying string
+  std::string::const_reverse_iterator rbegin() const
+  {
+    return as_string().rbegin();
+  }
+
+  std::string::const_reverse_iterator rend() const
+  {
+    return as_string().rend();
   }
 
 private:

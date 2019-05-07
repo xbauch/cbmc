@@ -96,8 +96,8 @@ int memory_analyzer_parse_optionst::doit()
   std::string binary = cmdline.args.front();
 
   const std::string symbol_list(cmdline.get_value("symbols"));
-  std::vector<std::string> result;
-  split_string(symbol_list, ',', result, true, true);
+  std::vector<irep_idt> result;
+  split_string<irep_idt>(symbol_list, ',', result, true, true);
 
   auto opt = read_goto_binary(binary, ui_message_handler);
 

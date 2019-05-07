@@ -22,12 +22,11 @@ gdb_value_extractort::gdb_value_extractort(
     symbol_table(symbol_table),
     ns(symbol_table),
     c_converter(ns, expr2c_configurationt::clean_configuration),
-    allocate_objects(ID_C, source_locationt(), "", this->symbol_table)
+    allocate_objects(ID_C, source_locationt(), irep_idt{}, this->symbol_table)
 {
 }
 
-void gdb_value_extractort::analyze_symbols(
-  const std::vector<std::string> &symbols)
+void gdb_value_extractort::analyze_symbols(const std::vector<irep_idt> &symbols)
 {
   // record addresses of given symbols
   for(const auto &id : symbols)
@@ -37,7 +36,7 @@ void gdb_value_extractort::analyze_symbols(
 
     const std::string c_expr = c_converter.convert(aoe);
     const pointer_valuet &value = gdb_api.get_memory(c_expr);
-    CHECK_RETURN(value.pointee.empty() || (value.pointee == id));
+    CHECK_RETURN(value.pointee.empty() || (id == value.pointee));
 
     values.insert({value.address, symbol_expr});
   }
