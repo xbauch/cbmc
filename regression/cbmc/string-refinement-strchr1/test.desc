@@ -1,4 +1,4 @@
-CORE
+CORE broken-smt-backend
 test.c
 --refine-strings --max-nondet-string-length 10
 ^EXIT=10$

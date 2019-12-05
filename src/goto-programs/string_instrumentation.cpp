@@ -201,7 +201,7 @@ void string_instrumentation(
   message_handlert &message_handler,
   const std::string &maybe_max_nondet_string_length_string)
 {
-  size_t max_nondet_string_length = 1000; //default
+  size_t max_nondet_string_length = 1000; // default
   if(!maybe_max_nondet_string_length_string.empty())
   {
     auto maybe_max_nondet_string_length =

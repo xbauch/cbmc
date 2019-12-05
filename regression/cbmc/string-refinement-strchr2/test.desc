@@ -1,4 +1,4 @@
-CORE
+CORE broken-smt-backend
 test.c
 --refine-strings
 ^EXIT=10$

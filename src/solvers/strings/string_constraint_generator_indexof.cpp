@@ -128,8 +128,8 @@ string_constraint_generatort::add_axioms_for_c_index_of(
   constraints.existential.push_back(a2);
 
   const exprt lower_bound(zero_if_negative(from_index));
-  // make sure that terminating zero exists (and is the smallest index after from
-  //  that has a 0 character)
+  // make sure that terminating zero exists (and is the smallest index after
+  // from that has a 0 character)
   constraints.existential.push_back(
     equal_exprt{str[terminating_zero], from_integer(0, c.type())});
   symbol_exprt k = fresh_symbol("QA_index_of", index_type);
