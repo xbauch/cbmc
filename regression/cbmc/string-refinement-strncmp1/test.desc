@@ -1,0 +1,11 @@
+CORE broken-smt-backend
+test.c
+--refine-strings
+^EXIT=0$
+^SIGNAL=0$
+^\[main.assertion.\d+\] line \d+ assertion compare_same == 0: SUCCESS$
+^\[main.assertion.\d+\] line \d+ assertion compare_precedes == 1: SUCCESS$
+^\[main.assertion.\d+\] line \d+ assertion compare_succedes == -1: SUCCESS$
+^VERIFICATION SUCCESSFUL$
+--
+^warning: ignoring

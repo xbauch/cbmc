@@ -79,6 +79,93 @@ string_constraint_generatort::add_axioms_for_equals(
   return {tc_eq, std::move(constraints)};
 }
 
+/// String comparision up to count. Consists of the following axioms:
+///
+/// \f$ {tt lhs\_tzero} \equiv {\tt terminating\_zero}({\tt lhs}) \f$
+/// \f$ {tt rhs\_tzero} \equiv {\tt terminating\_zero}({\tt rhs}) \f$
+/// \f$ eq \implies {\tt lhs\_tzero} \geq {\tt count} \f$
+/// \f$ \forall n \leq {\tt count}, eq \implies {\tt lhs}[n]={\tt rhs}[n] \f$
+/// \f$ eq \implies result = 0 \f$
+/// \f$ \neq eq \implies {\tt lhs}[witness]\neq{\tt rhs}[witness] \f$
+/// \f$ \neq eq \implies witness \lt {\tt count} \f$
+/// \f$ \forall n \lt witness, \neg eq \implies {\tt lhs}[n]={\tt rhs}[n] \f$
+/// \f$ eq \implies result = 0 \f$
+/// \f$ (\neg eq \wedge lhs[witness]<rhs[witness]) \implies result = -1 \f$
+/// \f$ (\neg eq \wedge lhs[witness]>rhs[witness]) \implies result = 1 \f$
+std::pair<exprt, string_constraintst>
+string_constraint_generatort::add_axioms_for_c_strncmp(
+  const array_string_exprt &lhs,
+  const array_string_exprt &rhs,
+  const exprt &unsigned_count,
+  const typet &return_type)
+{
+  string_constraintst constraints;
+
+  const typet index_type = lhs.length_type();
+  const auto count = typecast_exprt{unsigned_count, index_type};
+  const typet char_type = lhs.content().type().subtype();
+  const auto lhs_tzero =
+    add_axioms_for_zero_termination(lhs, index_type, char_type, constraints);
+  const auto rhs_tzero =
+    add_axioms_for_zero_termination(rhs, index_type, char_type, constraints);
+
+  const symbol_exprt eq = fresh_symbol("equal");
+  constraints.existential.push_back(
+    implies_exprt{eq, binary_relation_exprt{lhs_tzero, ID_ge, count}});
+  constraints.existential.push_back(
+    implies_exprt{eq, binary_relation_exprt{rhs_tzero, ID_ge, count}});
+
+  constraints.universal.push_back([&] {
+    const symbol_exprt equal_index = fresh_symbol("QA_equal_index", index_type);
+    return string_constraintt{
+      equal_index,
+      count,
+      implies_exprt{eq, equal_exprt{lhs[equal_index], rhs[equal_index]}}};
+  }());
+
+  symbol_exprt witness = fresh_symbol("witness", index_type);
+  constraints.universal.push_back([&] {
+    const symbol_exprt notequal_index =
+      fresh_symbol("QA_notequal_index", index_type);
+    return string_constraintt{
+      notequal_index,
+      zero_if_negative(witness),
+      implies_exprt{not_exprt{eq},
+                    equal_exprt{lhs[notequal_index], rhs[notequal_index]}}};
+  }());
+  constraints.existential.push_back(
+    implies_exprt{not_exprt{eq}, binary_relation_exprt{witness, ID_lt, count}});
+  constraints.existential.push_back(
+    implies_exprt{not_exprt{eq}, notequal_exprt{lhs[witness], rhs[witness]}});
+
+  const symbol_exprt result = fresh_symbol("result", return_type);
+  constraints.existential.push_back(
+    implies_exprt{eq, equal_exprt{result, from_integer(0, return_type)}});
+  constraints.existential.push_back(implies_exprt{
+    and_exprt{not_exprt{eq},
+              binary_relation_exprt{lhs[witness], ID_lt, rhs[witness]}},
+    equal_exprt{result, from_integer(-1, return_type)}});
+  constraints.existential.push_back(implies_exprt{
+    and_exprt{not_exprt{eq},
+              binary_relation_exprt{lhs[witness], ID_gt, rhs[witness]}},
+    equal_exprt{result, from_integer(1, return_type)}});
+
+  return {result, std::move(constraints)};
+}
+
+std::pair<exprt, string_constraintst>
+string_constraint_generatort::add_axioms_for_c_strncmp(
+  const function_application_exprt &f)
+{
+  const function_application_exprt::argumentst &args = f.arguments();
+  PRECONDITION(args.size() == 3);
+  const array_string_exprt lhs_string = get_string_expr(array_pool, args[0]);
+  const array_string_exprt rhs_string = get_string_expr(array_pool, args[1]);
+  const exprt &count = args[2];
+  PRECONDITION(count.type().id() == ID_unsignedbv);
+  return add_axioms_for_c_strncmp(lhs_string, rhs_string, count, f.type());
+}
+
 /// Returns an expression which is true when the two given characters are equal
 /// when ignoring case for ASCII
 /// \todo The extra constant character arguments are not needed.

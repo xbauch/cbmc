@@ -75,6 +75,12 @@ private:
     const exprt &return_code,
     const function_application_exprt &f);
 
+  exprt add_axioms_for_zero_termination(
+    const array_string_exprt &str,
+    const typet &index_type,
+    const typet &char_type,
+    string_constraintst &constraints);
+
 public:
   std::pair<exprt, string_constraintst> add_axioms_for_concat(
     const array_string_exprt &res,
@@ -125,6 +131,13 @@ public:
   add_axioms_for_equals(const function_application_exprt &f);
   std::pair<exprt, string_constraintst>
   add_axioms_for_equals_ignore_case(const function_application_exprt &f);
+  std::pair<exprt, string_constraintst>
+  add_axioms_for_c_strncmp(const function_application_exprt &f);
+  std::pair<exprt, string_constraintst> add_axioms_for_c_strncmp(
+    const array_string_exprt &lhs,
+    const array_string_exprt &rhs,
+    const exprt &count,
+    const typet &return_type);
 
   std::pair<exprt, string_constraintst>
   add_axioms_for_is_empty(const function_application_exprt &f);

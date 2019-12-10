@@ -116,6 +116,7 @@ protected:
   char_ptr_to_refined_string(const exprt &char_ptr, goto_programt &program);
 
   void do_strchr_via_c_index_of(goto_functiont &strchr_function);
+  void do_strncmp_via_c_strncmp(goto_functiont &strncmp_function);
 
   void do_strchr(
     goto_programt &dest,
@@ -230,6 +231,10 @@ void string_instrumentationt::operator()(goto_functionst &dest)
     {
       do_strchr_via_c_index_of(it->second);
     }
+    else if(it->first == "strncmp")
+    {
+      do_strncmp_via_c_strncmp(it->second);
+    }
     (*this)(it->second.body);
   }
 }
@@ -264,8 +269,6 @@ void string_instrumentationt::do_function_call(
     if(identifier=="strcoll")
     {
     }
-    else if(identifier=="strncmp")
-      do_strncmp(dest, target, call);
     else if(identifier=="strxfrm")
     {
     }
@@ -839,6 +842,50 @@ void string_instrumentationt::do_strchr_via_c_index_of(
     return_null, goto_programt::make_goto(end_function, true_exprt{}));
 
   strchr_function.body = std::move(new_body);
+}
+
+void string_instrumentationt::do_strncmp_via_c_strncmp(
+  goto_functiont &strncmp_function)
+{
+  const auto &params = to_code_type(strncmp_function.type).parameters();
+  PRECONDITION(params.size() == 3);
+  const auto &lhs_param = params.at(0);
+  const auto &rhs_param = params.at(1);
+  PRECONDITION(lhs_param.type() == rhs_param.type());
+  const auto &count_param = params.at(2);
+  PRECONDITION(count_param.type().id() == ID_unsignedbv);
+
+  goto_programt new_body;
+  const auto lhs_param_symbol =
+    symbol_exprt{lhs_param.get_identifier(), lhs_param.type()};
+  const auto refined_lhs =
+    char_ptr_to_refined_string(lhs_param_symbol, new_body);
+  const auto rhs_param_symbol =
+    symbol_exprt{rhs_param.get_identifier(), rhs_param.type()};
+  const auto refined_rhs =
+    char_ptr_to_refined_string(rhs_param_symbol, new_body);
+
+  const auto count_param_symbol =
+    symbol_exprt{count_param.get_identifier(), count_param.type()};
+  const auto cprover_string_strncmp_func_symbol = symbol_exprt{
+    ID_cprover_string_c_strncmp_func,
+    mathematical_function_typet{
+      {refined_lhs.type(), refined_rhs.type(), count_param_symbol.type()},
+      signed_int_type()}};
+  const auto apply_strncmp =
+    function_application_exprt{cprover_string_strncmp_func_symbol,
+                               {refined_lhs, refined_rhs, count_param_symbol}};
+  const auto returned_indicator = new_aux_symbol(
+    "strncmp::returned_indicator", signed_int_type(), symbol_table);
+  const auto returned_indicator_expr = returned_indicator.symbol_expr();
+  new_body.add(goto_programt::make_decl(returned_indicator_expr));
+  new_body.add(
+    goto_programt::make_assignment(returned_indicator_expr, apply_strncmp));
+  new_body.add(
+    goto_programt::make_return(code_returnt{returned_indicator_expr}));
+  new_body.add(goto_programt::make_end_function());
+
+  strncmp_function.body = std::move(new_body);
 }
 
 void string_instrumentationt::do_strchr(

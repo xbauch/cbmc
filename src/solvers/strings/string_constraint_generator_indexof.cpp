@@ -112,33 +112,21 @@ string_constraint_generatort::add_axioms_for_c_index_of(
 {
   string_constraintst constraints;
   const typet &index_type = str.length_type();
-  symbol_exprt index = fresh_symbol("index_of", index_type);
-  symbol_exprt contains = fresh_symbol("contains_in_index_of");
-  symbol_exprt terminating_zero = fresh_symbol("zero_in_index_of", index_type);
+  const auto index = fresh_symbol("index_of", index_type);
+  const auto contains = fresh_symbol("contains_in_index_of");
+  const auto terminating_zero =
+    add_axioms_for_zero_termination(str, index_type, c.type(), constraints);
 
   exprt minus1 = from_integer(-1, index_type);
+  const exprt lower_bound(zero_if_negative(from_index));
   and_exprt a1(
     binary_relation_exprt(index, ID_ge, minus1),
     binary_relation_exprt(index, ID_le, terminating_zero),
-    binary_relation_exprt(
-      terminating_zero, ID_lt, array_pool.get_or_create_length(str)));
+    binary_relation_exprt(terminating_zero, ID_gt, lower_bound));
   constraints.existential.push_back(a1);
 
   equal_exprt a2(not_exprt(contains), equal_exprt(index, minus1));
   constraints.existential.push_back(a2);
-
-  const exprt lower_bound(zero_if_negative(from_index));
-  // make sure that terminating zero exists (and is the smallest index after
-  // from that has a 0 character)
-  constraints.existential.push_back(
-    equal_exprt{str[terminating_zero], from_integer(0, c.type())});
-  symbol_exprt k = fresh_symbol("QA_index_of", index_type);
-  const string_constraintt a0 = string_constraintt{
-    k,
-    lower_bound,
-    zero_if_negative(terminating_zero),
-    not_exprt{equal_exprt{str[k], from_integer(0, c.type())}}};
-  constraints.universal.push_back(a0);
 
   implies_exprt a3(
     contains,

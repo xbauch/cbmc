@@ -255,6 +255,8 @@ string_constraint_generatort::add_axioms_for_function_application(
     return add_axioms_for_offset_by_code_point(expr);
   else if(id == ID_cprover_string_compare_to_func)
     return add_axioms_for_compare_to(expr);
+  else if(id == ID_cprover_string_c_strncmp_func)
+    return add_axioms_for_c_strncmp(expr);
   else if(id == ID_cprover_string_literal_func)
     return add_axioms_from_literal(expr);
   else if(id == ID_cprover_string_concat_code_point_func)
@@ -420,4 +422,34 @@ string_constraint_generatort::combine_results(
   const exprt return_code = maximum(result1.first, result2.first);
   merge(result2.second, std::move(result1.second));
   return {simplify_expr(return_code, ns), std::move(result2.second)};
+}
+
+/// Axioms encoding the presence of terminating zero for C strings.
+///
+/// Let \f$ {\tt terminating\_zero}({\tt src})= \f$
+/// \f$ {\tt tzero} \lt |{\tt str}| \f$
+/// \f$ {\tt str}[{\tt tzero}]='\0' \f$
+exprt string_constraint_generatort::add_axioms_for_zero_termination(
+  const array_string_exprt &str,
+  const typet &index_type,
+  const typet &char_type,
+  string_constraintst &constraints)
+{
+  const symbol_exprt terminating_zero =
+    fresh_symbol("terminating_zero", index_type);
+  constraints.existential.push_back(binary_relation_exprt{
+    terminating_zero, ID_lt, array_pool.get_or_create_length(str)});
+  constraints.existential.push_back(
+    equal_exprt{str[terminating_zero], from_integer(0, char_type)});
+  // make sure that terminating zero exists (and is the smallest index after
+  // from that has a 0 character)
+  constraints.universal.push_back([&] {
+    symbol_exprt k = fresh_symbol("QA_index_of", index_type);
+    return string_constraintt{
+      k,
+      zero_if_negative(terminating_zero),
+      not_exprt{equal_exprt{str[k], from_integer(0, char_type)}}};
+  }());
+
+  return terminating_zero;
 }
