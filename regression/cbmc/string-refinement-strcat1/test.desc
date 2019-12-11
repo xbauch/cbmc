@@ -1,0 +1,11 @@
+CORE broken-smt-backend
+test.c
+--refine-strings --unwind 30 --unwinding-assertions
+^EXIT=0$
+^SIGNAL=0$
+^\[.unwind.\d+\] unwinding assertion loop 0: SUCCESS$
+^\[main.assertion.\d+\] line \d+ assertion result == \(char \*\)dest_input: SUCCESS$
+^\[main.assertion.\d+\] line \d+ assertion result\[14\] == '_': SUCCESS$
+^VERIFICATION SUCCESSFUL$
+--
+^warning: ignoring

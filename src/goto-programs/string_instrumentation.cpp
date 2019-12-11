@@ -118,6 +118,7 @@ protected:
   void do_strchr_via_c_index_of(goto_functiont &strchr_function);
   void do_strncmp_via_c_strncmp(goto_functiont &strncmp_function);
   void do_strlen_via_c_strlen(goto_functiont &strlen_function);
+  void do_strcat_via_memcpy(goto_functiont &strcat_function);
 
   void do_strchr(
     goto_programt &dest,
@@ -239,6 +240,10 @@ void string_instrumentationt::operator()(goto_functionst &dest)
     else if(it->first == "strlen")
     {
       do_strlen_via_c_strlen(it->second);
+    }
+    else if(it->first == "strcat")
+    {
+      do_strcat_via_memcpy(it->second);
     }
     (*this)(it->second.body);
   }
@@ -920,6 +925,71 @@ void string_instrumentationt::do_strlen_via_c_strlen(
   new_body.add(goto_programt::make_return(code_returnt{returned_size_expr}));
   new_body.add(goto_programt::make_end_function());
   strlen_function.body = std::move(new_body);
+}
+
+void string_instrumentationt::do_strcat_via_memcpy(
+  goto_functiont &strcat_function)
+{
+  const auto &function_type = to_code_type(strcat_function.type);
+  const auto &params = function_type.parameters();
+  PRECONDITION(params.size() == 2);
+  const auto &dest_param = params.at(0);
+  const auto dest_param_symbol =
+    symbol_exprt{dest_param.get_identifier(), dest_param.type()};
+  const auto &src_param = params.at(1);
+  const auto src_param_symbol =
+    symbol_exprt{src_param.get_identifier(), src_param.type()};
+
+  const auto dest_size_symbol =
+    new_aux_symbol("strcat::dest_size", size_type(), symbol_table);
+  const auto dest_size_expr = dest_size_symbol.symbol_expr();
+  goto_programt new_body;
+  new_body.add(goto_programt::make_decl(dest_size_expr));
+  const auto refined_dest =
+    char_ptr_to_refined_string(dest_param_symbol, new_body);
+  const auto cprover_string_strlen_func_symbol = symbol_exprt{
+    ID_cprover_string_c_strlen_func,
+    mathematical_function_typet{{refined_dest.type()}, size_type()}};
+  new_body.add(goto_programt::make_assignment(
+    dest_size_expr,
+    function_application_exprt{cprover_string_strlen_func_symbol,
+                               {refined_dest}}));
+
+  const auto src_size_symbol =
+    new_aux_symbol("strcat::src_size", size_type(), symbol_table);
+  const auto src_size_expr = src_size_symbol.symbol_expr();
+  new_body.add(goto_programt::make_decl(src_size_expr));
+  const auto refined_src =
+    char_ptr_to_refined_string(src_param_symbol, new_body);
+  new_body.add(goto_programt::make_assignment(
+    src_size_expr,
+    function_application_exprt{cprover_string_strlen_func_symbol,
+                               {refined_src}}));
+
+  const auto offset =
+    new_aux_symbol("strcat::offset", size_type(), symbol_table);
+  const auto offset_symbol = offset.symbol_expr();
+  new_body.add(goto_programt::make_decl(offset_symbol));
+  new_body.add(goto_programt::make_assignment(
+    offset_symbol, from_integer(0, offset_symbol.type())));
+  const auto copy_one_char = new_body.add(goto_programt::make_assignment(
+    dereference_exprt{
+      plus_exprt{dest_param_symbol, plus_exprt{dest_size_expr, offset_symbol}}},
+    dereference_exprt{plus_exprt{src_param_symbol, offset_symbol}}));
+  new_body.add(goto_programt::make_assignment(
+    offset_symbol,
+    plus_exprt{offset_symbol, from_integer(1, offset_symbol.type())}));
+  new_body.add(goto_programt::make_goto(
+    copy_one_char, binary_relation_exprt{offset_symbol, ID_lt, src_size_expr}));
+  new_body.add(goto_programt::make_assignment(
+    dereference_exprt{
+      plus_exprt{dest_param_symbol, plus_exprt{dest_size_expr, offset_symbol}}},
+    from_integer(0, char_type())));
+
+  new_body.add(goto_programt::make_return(code_returnt{dest_param_symbol}));
+  new_body.add(goto_programt::make_end_function());
+
+  strcat_function.body = std::move(new_body);
 }
 
 void string_instrumentationt::do_strchr(
