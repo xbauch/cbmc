@@ -140,6 +140,9 @@ public:
     const typet &return_type);
 
   std::pair<exprt, string_constraintst>
+  add_axioms_for_c_strlen(const function_application_exprt &f);
+
+  std::pair<exprt, string_constraintst>
   add_axioms_for_is_empty(const function_application_exprt &f);
   std::pair<exprt, string_constraintst> add_axioms_for_is_prefix(
     const array_string_exprt &prefix,

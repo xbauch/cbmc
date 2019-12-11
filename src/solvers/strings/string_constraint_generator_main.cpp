@@ -257,6 +257,8 @@ string_constraint_generatort::add_axioms_for_function_application(
     return add_axioms_for_compare_to(expr);
   else if(id == ID_cprover_string_c_strncmp_func)
     return add_axioms_for_c_strncmp(expr);
+  else if(id == ID_cprover_string_c_strlen_func)
+    return add_axioms_for_c_strlen(expr);
   else if(id == ID_cprover_string_literal_func)
     return add_axioms_from_literal(expr);
   else if(id == ID_cprover_string_concat_code_point_func)
@@ -452,4 +454,22 @@ exprt string_constraint_generatort::add_axioms_for_zero_termination(
   }());
 
   return terminating_zero;
+}
+
+std::pair<exprt, string_constraintst>
+string_constraint_generatort::add_axioms_for_c_strlen(
+  const function_application_exprt &f)
+{
+  const function_application_exprt::argumentst &args = f.arguments();
+  PRECONDITION(args.size() == 1);
+  const auto str = get_string_expr(array_pool, args[0]);
+  string_constraintst constraints;
+  const auto str_tzero = add_axioms_for_zero_termination(
+    str,
+    str.length_type(),
+    str.content().type().subtype(),
+    //f.type(),
+    constraints);
+
+  return {typecast_exprt{str_tzero, f.type()}, constraints};
 }

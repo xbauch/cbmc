@@ -117,6 +117,7 @@ protected:
 
   void do_strchr_via_c_index_of(goto_functiont &strchr_function);
   void do_strncmp_via_c_strncmp(goto_functiont &strncmp_function);
+  void do_strlen_via_c_strlen(goto_functiont &strlen_function);
 
   void do_strchr(
     goto_programt &dest,
@@ -234,6 +235,10 @@ void string_instrumentationt::operator()(goto_functionst &dest)
     else if(it->first == "strncmp")
     {
       do_strncmp_via_c_strncmp(it->second);
+    }
+    else if(it->first == "strlen")
+    {
+      do_strlen_via_c_strlen(it->second);
     }
     (*this)(it->second.body);
   }
@@ -886,6 +891,35 @@ void string_instrumentationt::do_strncmp_via_c_strncmp(
   new_body.add(goto_programt::make_end_function());
 
   strncmp_function.body = std::move(new_body);
+}
+
+void string_instrumentationt::do_strlen_via_c_strlen(
+  goto_functiont &strlen_function)
+{
+  const auto &function_type = to_code_type(strlen_function.type);
+  const auto &params = function_type.parameters();
+  PRECONDITION(params.size() == 1);
+  const auto &src_param = params.at(0);
+  const auto src_param_symbol =
+    symbol_exprt{src_param.get_identifier(), src_param.type()};
+  goto_programt new_body;
+  const auto refined_src =
+    char_ptr_to_refined_string(src_param_symbol, new_body);
+  const auto cprover_string_strlen_func_symbol =
+    symbol_exprt{ID_cprover_string_c_strlen_func,
+                 mathematical_function_typet{{refined_src.type()},
+                                             function_type.return_type()}};
+  const auto apply_strlen = function_application_exprt{
+    cprover_string_strlen_func_symbol, {refined_src}};
+  const auto returned_size = new_aux_symbol(
+    "strlen::returned_size", function_type.return_type(), symbol_table);
+  const auto returned_size_expr = returned_size.symbol_expr();
+  new_body.add(goto_programt::make_decl(returned_size_expr));
+  new_body.add(
+    goto_programt::make_assignment(returned_size_expr, apply_strlen));
+  new_body.add(goto_programt::make_return(code_returnt{returned_size_expr}));
+  new_body.add(goto_programt::make_end_function());
+  strlen_function.body = std::move(new_body);
 }
 
 void string_instrumentationt::do_strchr(

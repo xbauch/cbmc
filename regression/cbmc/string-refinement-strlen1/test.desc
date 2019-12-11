@@ -1,0 +1,10 @@
+CORE broken-smt-backend
+test.c
+--refine-strings
+^EXIT=10$
+^SIGNAL=0$
+^\[main.assertion.\d+\] line \d+ assertion src1_length == 10: FAILURE$
+^\[main.assertion.\d+\] line \d+ assertion src2_length == 5: SUCCESS$
+^VERIFICATION FAILED$
+--
+^warning: ignoring
