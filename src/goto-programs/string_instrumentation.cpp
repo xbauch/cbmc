@@ -115,10 +115,11 @@ protected:
   refined_string_exprt
   char_ptr_to_refined_string(const exprt &char_ptr, goto_programt &program);
 
-  void do_strchr_via_c_index_of(goto_functiont &strchr_function);
   void do_strncmp_via_c_strncmp(goto_functiont &strncmp_function);
   void do_strlen_via_c_strlen(goto_functiont &strlen_function);
   void do_strcat_via_memcpy(goto_functiont &strcat_function);
+  void do_strstr_via_c_index_of_string(goto_functiont &strstr_function);
+  void do_substring_via_index_of(goto_functiont &substring_function);
 
   void do_strchr(
     goto_programt &dest,
@@ -231,7 +232,7 @@ void string_instrumentationt::operator()(goto_functionst &dest)
   {
     if(it->first == "strchr")
     {
-      do_strchr_via_c_index_of(it->second);
+      do_substring_via_index_of(it->second);
     }
     else if(it->first == "strncmp")
     {
@@ -244,6 +245,10 @@ void string_instrumentationt::operator()(goto_functionst &dest)
     else if(it->first == "strcat")
     {
       do_strcat_via_memcpy(it->second);
+    }
+    else if(it->first == "strstr")
+    {
+      do_substring_via_index_of(it->second);
     }
     (*this)(it->second.body);
   }
@@ -295,8 +300,6 @@ void string_instrumentationt::do_function_call(
     }
     else if(identifier=="strerror")
       do_strerror(dest, target, call);
-    else if(identifier=="strstr")
-      do_strstr(dest, target, call);
     else if(identifier=="strtok")
       do_strtok(dest, target, call);
     else if(identifier=="sprintf")
@@ -771,89 +774,6 @@ refined_string_exprt string_instrumentationt::char_ptr_to_refined_string(
   return refined_string_exprt{refined_string_expr.length(), char_ptr};
 }
 
-// Implement strchr in terms of indexOf for the purposes of using the
-// string-solver.
-//
-// char * strchr(char *src, int c) {
-//   int string_length = nondet();
-//   assume (string_length < =max_nondet_string_length);
-//   char *string_content = src;
-//   char (*nondet_infinite_array_pointer)[\infty];
-//   nondet_infinite_array_pointer = string_content;
-//
-//   cprover_associate_length_to_array_func(nondet_infinite_array_pointer,
-//                                          string_length);
-//   cprover_associate_array_to_pointer_func(nondet_infinite_array_pointer,
-//                                           src);
-//   struct refined_string_struct {
-//     int length = string_length;
-//     char *content = src;
-//   } refined_string;
-//
-//   maybe_return = cprover_string_index_of_func(refined_string, c);
-//   if (maybe_return >= 0)
-//     return src + maybe_return;
-//   else
-//     return NULL:
-// }
-void string_instrumentationt::do_strchr_via_c_index_of(
-  goto_functiont &strchr_function)
-{
-  //   struct refined_string_struct {
-  //     int length = string_length;
-  //     char *content = src;
-  //   } refined_string;
-  const auto &params = to_code_type(strchr_function.type).parameters();
-  const auto &str_param = params.at(0);
-  const auto &ch_param = params.at(1);
-  const auto refined_string_type =
-    refined_string_typet{index_type(), to_pointer_type(str_param.type())};
-  const auto str_param_symbol =
-    symbol_exprt{str_param.get_identifier(), str_param.type()};
-  const auto ch_param_symbol =
-    symbol_exprt{ch_param.get_identifier(), ch_param.type()};
-  goto_programt new_body;
-  const auto refined_string =
-    char_ptr_to_refined_string(str_param_symbol, new_body);
-
-  //   maybe_return = cprover_string_index_of_func(refined_string, c);
-  const auto cprover_string_index_of_func_symbol = symbol_exprt{
-    ID_cprover_string_c_index_of_func,
-    mathematical_function_typet(
-      {refined_string.type(), ch_param_symbol.type()}, index_type())};
-  const auto apply_index_of = function_application_exprt{
-    cprover_string_index_of_func_symbol, {refined_string, ch_param_symbol}};
-  const auto maybe_return =
-    new_aux_symbol("strchr::indexOf::maybe_return", index_type(), symbol_table);
-  const auto maybe_return_expr = maybe_return.symbol_expr();
-  new_body.add(goto_programt::make_decl(maybe_return_expr));
-  new_body.add(
-    goto_programt::make_assignment(maybe_return_expr, apply_index_of));
-
-  //   if (maybe_return >= 0)
-  //     return src + maybe_return;
-  //   else
-  //     return NULL:
-  auto found_case = new_body.add(goto_programt::make_return(code_returnt{
-    plus_exprt{str_param_symbol,
-               typecast_exprt{maybe_return.symbol_expr(), size_type()}}}));
-  auto jump_to_found_case = new_body.insert_before(
-    found_case,
-    goto_programt::make_goto(
-      found_case,
-      binary_relation_exprt{
-        maybe_return.symbol_expr(), ID_ge, from_integer(0, index_type())}));
-  auto return_null = new_body.insert_after(
-    jump_to_found_case,
-    goto_programt::make_return(
-      code_returnt{null_pointer_exprt{to_pointer_type(str_param.type())}}));
-  auto end_function = new_body.add(goto_programt::make_end_function());
-  new_body.insert_after(
-    return_null, goto_programt::make_goto(end_function, true_exprt{}));
-
-  strchr_function.body = std::move(new_body);
-}
-
 void string_instrumentationt::do_strncmp_via_c_strncmp(
   goto_functiont &strncmp_function)
 {
@@ -990,6 +910,101 @@ void string_instrumentationt::do_strcat_via_memcpy(
   new_body.add(goto_programt::make_end_function());
 
   strcat_function.body = std::move(new_body);
+}
+
+// Implement strchr/strstr in terms of indexOf for the purposes of using the
+// string-solver.
+//
+// char * strchr(char *src, int c) {
+//   int string_length = nondet();
+//   assume (string_length < =max_nondet_string_length);
+//   char *string_content = src;
+//   char (*nondet_infinite_array_pointer)[\infty];
+//   nondet_infinite_array_pointer = string_content;
+//
+//   cprover_associate_length_to_array_func(nondet_infinite_array_pointer,
+//                                          string_length);
+//   cprover_associate_array_to_pointer_func(nondet_infinite_array_pointer,
+//                                           src);
+//   struct refined_string_struct {
+//     int length = string_length;
+//     char *content = src;
+//   } refined_string;
+//
+//   index_of_string = cprover_string_index_of_func(refined_string, c);
+//   if (index_of_string >= 0)
+//     return src + index_of_string;
+//   else
+//     return NULL:
+// }
+void string_instrumentationt::do_substring_via_index_of(
+  goto_functiont &substring_function)
+{
+  //   struct refined_string_struct {
+  //     int length = string_length;
+  //     char *content = src;
+  //   } refined_string;
+  const auto &params = to_code_type(substring_function.type).parameters();
+  PRECONDITION(params.size() == 2);
+  const auto &str_param = params.at(0);
+  const auto str_param_symbol =
+    symbol_exprt{str_param.get_identifier(), str_param.type()};
+  const auto &substr_param = params.at(1);
+  const auto substr_param_symbol =
+    symbol_exprt{substr_param.get_identifier(), substr_param.type()};
+
+  goto_programt new_body;
+  const auto refined_str =
+    char_ptr_to_refined_string(str_param_symbol, new_body);
+  bool substr_is_single_char = substr_param.type() == char_type();
+  // substring is either a single character or a string (the latter needs to be
+  // refined)
+  const auto refined_substr = [&](const exprt &arg) -> exprt {
+    if(substr_is_single_char)
+      return arg;
+    else
+      return char_ptr_to_refined_string(arg, new_body);
+  }(substr_param_symbol);
+
+  //   index_of_string = cprover_string_index_of_func(refined_string,
+  //                                                  refined_substr);
+  const auto cprover_string_c_index_of_string_func_symbol = symbol_exprt{
+    substr_is_single_char ? ID_cprover_string_c_index_of_func
+                          : ID_cprover_string_c_index_of_string_func,
+    mathematical_function_typet{{refined_str.type(), refined_substr.type()},
+                                index_type()}};
+  const auto apply_index_of_string =
+    function_application_exprt{cprover_string_c_index_of_string_func_symbol,
+                               {refined_str, refined_substr}};
+  const auto returned_index =
+    new_aux_symbol("strstr::index_of_string", index_type(), symbol_table);
+  const auto returned_index_expr = returned_index.symbol_expr();
+  new_body.add(goto_programt::make_decl(returned_index_expr));
+  new_body.add(
+    goto_programt::make_assignment(returned_index_expr, apply_index_of_string));
+
+  //   if (index_of_string >= 0)
+  //     return src + index_of_string;
+  //   else
+  //     return NULL:
+  const auto found_case =
+    new_body.add(goto_programt::make_return(code_returnt{plus_exprt{
+      str_param_symbol, typecast_exprt{returned_index_expr, size_type()}}}));
+  const auto jump_to_found_case = new_body.insert_before(
+    found_case,
+    goto_programt::make_goto(
+      found_case,
+      binary_relation_exprt{
+        returned_index_expr, ID_ge, from_integer(0, index_type())}));
+  const auto return_null = new_body.insert_after(
+    jump_to_found_case,
+    goto_programt::make_return(
+      code_returnt{null_pointer_exprt{to_pointer_type(str_param.type())}}));
+  const auto end_function = new_body.add(goto_programt::make_end_function());
+  new_body.insert_after(
+    return_null, goto_programt::make_goto(end_function, true_exprt{}));
+
+  substring_function.body = std::move(new_body);
 }
 
 void string_instrumentationt::do_strchr(

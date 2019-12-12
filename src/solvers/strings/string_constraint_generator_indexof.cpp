@@ -248,6 +248,77 @@ string_constraint_generatort::add_axioms_for_index_of_string(
   return {offset, std::move(constraints)};
 }
 
+std::pair<exprt, string_constraintst>
+string_constraint_generatort::add_axioms_for_c_index_of_string(
+  const array_string_exprt &haystack,
+  const array_string_exprt &needle,
+  const exprt &from_index)
+{
+  string_constraintst constraints;
+  const auto &index_type = haystack.length_type();
+  const auto &char_type = haystack.content().type().subtype();
+
+  const auto haystack_tzero = add_axioms_for_zero_termination(
+    haystack, index_type, char_type, constraints);
+  const auto needle_tzero =
+    add_axioms_for_zero_termination(needle, index_type, char_type, constraints);
+
+  const auto offset = fresh_symbol("index_of", index_type);
+  const auto contains = fresh_symbol("contains_substring");
+
+  constraints.existential.push_back(
+    implies_exprt{contains, binary_relation_exprt{from_index, ID_le, offset}});
+  const auto size_dif = minus_exprt{haystack_tzero, needle_tzero};
+  constraints.existential.push_back(
+    implies_exprt{contains, binary_relation_exprt{offset, ID_le, size_dif}});
+
+  constraints.existential.push_back(equal_exprt{
+    not_exprt{contains}, equal_exprt{offset, from_integer(-1, index_type)}});
+
+  constraints.universal.push_back([&] {
+    const auto qvar = fresh_symbol("QA_index_of_string", index_type);
+    return string_constraintt{
+      qvar,
+      zero_if_negative(needle_tzero),
+      implies_exprt{
+        contains,
+        equal_exprt{haystack[plus_exprt{qvar, offset}], needle[qvar]}}};
+  }());
+
+  const auto zero = from_integer(0, index_type);
+  // haystack before offset does not contain needle
+  constraints.not_contains.push_back(string_not_contains_constraintt{
+    from_index, offset, contains, zero, needle_tzero, haystack, needle});
+
+  constraints.not_contains.push_back(string_not_contains_constraintt{
+    from_index,
+    plus_exprt{size_dif, from_integer(1, index_type)},
+    not_exprt(contains),
+    zero,
+    needle_tzero,
+    haystack,
+    needle});
+
+  constraints.existential.push_back(implies_exprt{
+    equal_exprt{needle_tzero, zero}, equal_exprt{offset, from_index}});
+
+  return {offset, std::move(constraints)};
+}
+
+std::pair<exprt, string_constraintst>
+string_constraint_generatort::add_axioms_for_c_index_of_string(
+  const function_application_exprt &f)
+{
+  const auto &args = f.arguments();
+  PRECONDITION(args.size() == 2);
+  const auto str = get_string_expr(array_pool, args[0]);
+  const auto &index_type = str.length_type();
+  const auto substr = get_string_expr(array_pool, args[1]);
+
+  return add_axioms_for_c_index_of_string(
+    str, substr, from_integer(0, index_type));
+}
+
 /// Add axioms stating that the returned value is the index within haystack of
 /// the last occurrence of needle starting the search backward at from_index (ie
 /// the index is smaller or equal to from_index), or -1 if needle does not occur

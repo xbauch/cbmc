@@ -1,0 +1,10 @@
+CORE broken-smt-backend
+test.c
+--refine-strings
+^EXIT=0$
+^SIGNAL=0$
+^\[main.assertion.\d+\] line \d+ assertion result == \(char \*\)str_input + 4: SUCCESS$
+^\[main.assertion.\d+\] line \d+ assertion \*result == 'i': SUCCESS$
+^VERIFICATION SUCCESSFUL$
+--
+^warning: ignoring
