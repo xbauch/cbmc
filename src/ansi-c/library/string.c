@@ -954,30 +954,32 @@ inline char *strchr(const char *src, int c)
 /* FUNCTION: strstr */
 
 #ifndef __CPROVER_STRING_H_INCLUDED
-#include <string.h>
-#define __CPROVER_STRING_H_INCLUDED
+#  include <string.h>
+#  define __CPROVER_STRING_H_INCLUDED
 #endif
 
 #undef strstr
 
 inline char *strstr(const char *str, const char *substr)
 {
-  __CPROVER_HIDE:;
-  #ifdef __CPROVER_STRING_ABSTRACTION
-  __CPROVER_precondition(__CPROVER_is_zero_string(src),
-                         "strstr zero-termination of string argument");
-  __CPROVER_precondition(__CPROVER_is_zero_string(subsrc),
-                         "strstr zero-termination of string argument");
+__CPROVER_HIDE:;
+#ifdef __CPROVER_STRING_ABSTRACTION
+  __CPROVER_precondition(
+    __CPROVER_is_zero_string(src),
+    "strstr zero-termination of string argument");
+  __CPROVER_precondition(
+    __CPROVER_is_zero_string(subsrc),
+    "strstr zero-termination of string argument");
   __CPROVER_bool found;
   __CPROVER_size_t i;
-  return found?src+i:0;
-  #else
+  return found ? src + i : 0;
+#else
   size_t n = strlen(substr);
   while(*str)
-    if(!memcmp(str++,substr,n))
-      return (char*)str-1;
+    if(!memcmp(str++, substr, n))
+      return (char *)str - 1;
   return 0;
-  #endif
+#endif
 }
 
 /* FUNCTION: strrchr */

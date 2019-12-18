@@ -13,8 +13,9 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <sstream>
 #include <set>
 
-#include <util/std_expr.h>
 #include <util/byte_operators.h>
+#include <util/options.h>
+#include <util/std_expr.h>
 
 #if !HASH_CODE
 #  include <util/irep_hash_container.h>
@@ -52,7 +53,8 @@ public:
     const std::string &_notes,
     const std::string &_logic,
     solvert _solver,
-    std::ostream &_out);
+    std::ostream &_out,
+    const optionst &options);
 
   ~smt2_convt() override = default;
 
@@ -83,6 +85,7 @@ protected:
   std::ostream &out;
   std::string benchmark, notes, logic;
   solvert solver;
+  const optionst &options;
 
   std::vector<exprt> assumptions;
   boolbv_widtht boolbv_width;
@@ -123,6 +126,8 @@ protected:
   void convert_update(const exprt &expr);
 
   std::string convert_identifier(const irep_idt &identifier);
+  std::string string_expr_to_string(const exprt &e) const;
+  bool char_ptr_is_string(const typet &t) const;
 
   void convert_expr(const exprt &);
   void convert_type(const typet &);

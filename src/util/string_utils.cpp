@@ -166,3 +166,61 @@ std::string escape_non_alnum(const std::string &to_escape)
   }
   return escaped.str();
 }
+
+char hex_string_to_char(const std::string &in)
+{
+  CHECK_RETURN(in.size() <= 2);
+  char result = 0;
+  if(in.size() == 0)
+    return result;
+  auto hex_char_to_char = [](char c) -> char {
+    switch(c)
+    {
+    case '0':
+      return 0;
+    case '1':
+      return 1;
+    case '2':
+      return 2;
+    case '3':
+      return 3;
+    case '4':
+      return 4;
+    case '5':
+      return 5;
+    case '6':
+      return 6;
+    case '7':
+      return 7;
+    case '8':
+      return 8;
+    case '9':
+      return 9;
+    case 'A':
+    case 'a':
+      return 10;
+    case 'B':
+    case 'b':
+      return 11;
+    case 'C':
+    case 'c':
+      return 12;
+    case 'D':
+    case 'd':
+      return 13;
+    case 'E':
+    case 'e':
+      return 14;
+    case 'F':
+    case 'f':
+      return 15;
+    default:;
+    };
+    UNREACHABLE;
+  };
+  if(in.size() > 0)
+    result += hex_char_to_char(in.back());
+  if(in.size() > 1)
+    result += 16 * hex_char_to_char(in[0]);
+  return result;
+}

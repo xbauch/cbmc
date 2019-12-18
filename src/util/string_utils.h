@@ -119,4 +119,5 @@ std::string escape(const std::string &);
 /// \return string with non-alphanumeric characters escaped
 std::string escape_non_alnum(const std::string &to_escape);
 
+char hex_string_to_char(const std::string &in);
 #endif

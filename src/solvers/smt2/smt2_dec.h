@@ -34,8 +34,16 @@ public:
     const std::string &_benchmark,
     const std::string &_notes,
     const std::string &_logic,
-    solvert _solver):
-    smt2_convt(_ns, _benchmark, _notes, _logic, _solver, stringstream)
+    solvert _solver,
+    const optionst &options)
+    : smt2_convt(
+        _ns,
+        _benchmark,
+        _notes,
+        _logic,
+        _solver,
+        stringstream,
+        options)
   {
   }
 

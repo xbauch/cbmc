@@ -11,6 +11,8 @@ Author: Daniel Kroening, Peter Schrammel
 
 #include "properties.h"
 
+#include <iostream>
+
 #include <util/exit_codes.h>
 #include <util/invariant.h>
 #include <util/json.h>
@@ -88,6 +90,8 @@ void update_properties_from_goto_model(
       std::string description = id2string(i_it->source_location.get_comment());
       if(description.empty())
         description = "assertion";
+      std::cerr << "pid: " << id2string(i_it->source_location.get_property_id())
+                << "\n";
       properties.emplace(
         i_it->source_location.get_property_id(),
         property_infot{i_it, description, property_statust::NOT_CHECKED});

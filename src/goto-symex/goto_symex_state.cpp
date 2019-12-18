@@ -18,6 +18,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/as_const.h>
 #include <util/base_exceptions.h>
 #include <util/byte_operators.h>
+#include <util/c_types.h>
 #include <util/exception_utils.h>
 #include <util/expr_util.h>
 #include <util/format.h>
@@ -547,8 +548,11 @@ void goto_symex_statet::rename_address(exprt &expr, const namespacet &ns)
   {
     ssa_exprt &ssa=to_ssa_expr(expr);
 
-    // only do L1!
-    ssa = set_indices<L1>(std::move(ssa), ns).get();
+    // if not a string only do L1!
+    if(expr.type().id() == ID_array && expr.type().subtype() == char_type())
+      ssa = set_indices<L2>(std::move(ssa), ns).get();
+    else
+      ssa = set_indices<L1>(std::move(ssa), ns).get();
 
     rename<level>(expr.type(), ssa.get_identifier(), ns);
     ssa.update_type();

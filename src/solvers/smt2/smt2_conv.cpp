@@ -27,6 +27,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <util/std_types.h>
 #include <util/string2int.h>
 #include <util/string_constant.h>
+#include <util/string_utils.h>
 
 #include <solvers/flattening/boolbv_width.h>
 #include <solvers/flattening/c_bit_field_replacement_type.h>
@@ -49,7 +50,8 @@ smt2_convt::smt2_convt(
   const std::string &_notes,
   const std::string &_logic,
   solvert _solver,
-  std::ostream &_out)
+  std::ostream &_out,
+  const optionst &options)
   : use_FPA_theory(false),
     use_datatypes(false),
     use_array_of_bool(false),
@@ -60,6 +62,7 @@ smt2_convt::smt2_convt(
     notes(_notes),
     logic(_logic),
     solver(_solver),
+    options(options),
     boolbv_width(_ns),
     pointer_logic(_ns),
     no_boolean_variables(0)
@@ -630,6 +633,8 @@ void smt2_convt::convert_address_of_rec(
     {
       if(array.type().id()==ID_pointer)
         convert_expr(array);
+      // else if(array.type().subtype() == char_type())
+      //   convert_expr(array);
       else if(array.type().id()==ID_array)
         convert_address_of_rec(array, result_type);
       else
@@ -882,6 +887,35 @@ void smt2_convt::convert_floatbv(const exprt &expr)
   out << ')';
 }
 
+std::string smt2_convt::string_expr_to_string(const exprt &e) const
+{
+  PRECONDITION(options.get_bool_option("z3str"));
+  if(e.id() == ID_address_of)
+  {
+    const auto address_of_expr = to_address_of_expr(e);
+    const auto index = address_of_expr.object();
+    if(index.id() == ID_index)
+    {
+      const auto index_expr = to_index_expr(index);
+      const auto array = index_expr.array();
+      if(array.id() == ID_symbol)
+      {
+        const auto symbol_expr = to_symbol_expr(array);
+
+        return std::string{"|"} + id2string(symbol_expr.get_identifier()) +
+               "_str|";
+      }
+    }
+  }
+  else if(e.id() == ID_constant)
+  { // int TODO more checks
+    const auto constant = to_constant_expr(e);
+    const auto c = hex_string_to_char(id2string(constant.get_value()));
+    return std::string{"\""} + std::string{c} + "\"";
+  }
+  UNREACHABLE;
+}
+
 void smt2_convt::convert_expr(const exprt &expr)
 {
   // huge monster case split over expression id
@@ -890,6 +924,32 @@ void smt2_convt::convert_expr(const exprt &expr)
     const irep_idt &id = to_symbol_expr(expr).get_identifier();
     DATA_INVARIANT(!id.empty(), "symbol must have identifier");
     out << '|' << convert_identifier(id) << '|';
+  }
+  else if(expr.id() == ID_function_application)
+  {
+    PRECONDITION(options.get_bool_option("z3str"));
+    const auto &fap = to_function_application_expr(expr);
+    const auto &function = fap.function();
+    PRECONDITION(function.id() == ID_symbol);
+    const auto function_id = to_symbol_expr(function).get_identifier();
+    const auto &arguments = fap.arguments();
+    if(function_id == ID_cprover_z3_mk_str_length)
+    {
+      INVARIANT(arguments.size() == 1, "str.len takes one argument");
+      out << "((_ int2bv 64) (str.len ";
+      convert_expr(arguments.at(0));
+      out << "))";
+    }
+    else if(function_id == ID_cprover_z3_mk_str_indexof)
+    {
+      INVARIANT(arguments.size() == 2, "str.at takes two arguments");
+      out << "((_ int2bv 64) (str.indexof ";
+      out << string_expr_to_string(arguments.at(0)) << " ";
+      out << string_expr_to_string(arguments.at(1));
+      out << " 0))";
+    }
+    else
+      UNREACHABLE;
   }
   else if(expr.id()==ID_nondet_symbol)
   {
@@ -4178,6 +4238,32 @@ void smt2_convt::set_to(const exprt &expr, bool value)
         std::string smt2_identifier=convert_identifier(identifier);
         smt2_identifiers.insert(smt2_identifier);
 
+        auto expr_is_string = [this](const exprt &e) {
+          PRECONDITION(options.get_bool_option("z3str"));
+          return (e.id() == ID_address_of &&
+                  to_address_of_expr(e).object().id() == ID_index) ||
+                 e.id() == ID_array;
+        };
+
+        if(char_ptr_is_string(equal_expr.lhs().type()))
+        {
+          if(expr_is_string(prepared_rhs))
+          {
+            const auto string_identifier = smt2_identifier + "_str";
+            smt2_identifiers.insert(string_identifier);
+            out << "; set_to true (equal)\n";
+            out << "(define-fun |" << string_identifier << "| () String ";
+            if(prepared_rhs.id() == ID_array)
+            { // TODO move to string_expr_to_string
+              convert_expr(prepared_rhs);
+              out << "_str)\n";
+            }
+            else
+            {
+              out << string_expr_to_string(prepared_rhs) << ")\n";
+            }
+          }
+        }
         out << "; set_to true (equal)\n";
         out << "(define-fun |" << smt2_identifier << "| () ";
 
@@ -4186,6 +4272,7 @@ void smt2_convt::set_to(const exprt &expr, bool value)
         convert_expr(prepared_rhs);
 
         out << ")" << "\n";
+
         return; // done
       }
     }
@@ -4286,6 +4373,15 @@ void smt2_convt::find_symbols(const exprt &expr)
     return;
   }
 
+  if(expr.id() == ID_function_application)
+  {
+    PRECONDITION(options.get_bool_option("z3str"));
+    //const auto &fap = to_function_application_expr(expr);
+    //const auto &function = fap.function();
+    find_symbols(expr.op1());
+    return;
+  }
+
   // recursive call on operands
   forall_operands(it, expr)
     find_symbols(*it);
@@ -4353,6 +4449,22 @@ void smt2_convt::find_symbols(const exprt &expr)
 
       const irep_idt id = "array." + std::to_string(defined_expressions.size());
       out << "; the following is a substitute for an array constructor" << "\n";
+
+      if(char_ptr_is_string(expr.type()))
+      {
+        out << "(declare-fun " << id << "_str () String)\n";
+        out << "(assert (= " << id << "_str \"";
+        for(size_t i = 0; i < expr.operands().size(); i++)
+        {
+          auto at_i = to_constant_expr(expr.operands()[i]).get_value();
+          const char i_as_char = hex_string_to_char(id2string(at_i));
+          if(i_as_char == 0)
+            break;
+          out << i_as_char;
+        }
+        out << "\"))\n";
+      }
+
       out << "(declare-fun " << id << " () ";
       convert_type(array_type);
       out << ")" << "\n";
@@ -4847,4 +4959,12 @@ void smt2_convt::find_symbols_rec(
 std::size_t smt2_convt::get_number_of_solver_calls() const
 {
   return number_of_solver_calls;
+}
+
+bool smt2_convt::char_ptr_is_string(const typet &t) const
+{
+  if(!options.get_bool_option("z3str"))
+    return false;
+  return (t.id() == ID_pointer || t.id() == ID_array) &&
+         t.subtype() == char_type();
 }

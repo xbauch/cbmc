@@ -117,6 +117,8 @@ protected:
 
   void do_strncmp_via_c_strncmp(goto_functiont &strncmp_function);
   void do_strlen_via_c_strlen(goto_functiont &strlen_function);
+  void do_strlen_via_z3_str_length(goto_functiont &strlen_function);
+  void do_strchr_via_z3_str_at(goto_functiont &strchr_function);
   void do_strcat_via_memcpy(goto_functiont &strcat_function);
   void do_strstr_via_c_index_of_string(goto_functiont &strstr_function);
   void do_substring_via_index_of(goto_functiont &substring_function);
@@ -232,7 +234,8 @@ void string_instrumentationt::operator()(goto_functionst &dest)
   {
     if(it->first == "strchr")
     {
-      do_substring_via_index_of(it->second);
+      //do_substring_via_index_of(it->second);
+      do_strchr_via_z3_str_at(it->second);
     }
     else if(it->first == "strncmp")
     {
@@ -240,7 +243,8 @@ void string_instrumentationt::operator()(goto_functionst &dest)
     }
     else if(it->first == "strlen")
     {
-      do_strlen_via_c_strlen(it->second);
+      // do_strlen_via_c_strlen(it->second);
+      do_strlen_via_z3_str_length(it->second);
     }
     else if(it->first == "strcat")
     {
@@ -816,6 +820,80 @@ void string_instrumentationt::do_strncmp_via_c_strncmp(
   new_body.add(goto_programt::make_end_function());
 
   strncmp_function.body = std::move(new_body);
+}
+
+void string_instrumentationt::do_strlen_via_z3_str_length(
+  goto_functiont &strlen_function)
+{
+  const auto &function_type = to_code_type(strlen_function.type);
+  const auto &params = function_type.parameters();
+  const auto &src_param = params.at(0);
+  const auto src_param_symbol =
+    symbol_exprt{src_param.get_identifier(), src_param.type()};
+  goto_programt new_body;
+
+  const auto cprover_z3_mk_str_length_symbol =
+    symbol_exprt{ID_cprover_z3_mk_str_length,
+                 mathematical_function_typet{{src_param.type()},
+                                             function_type.return_type()}};
+  const auto apply_z3_strlen = function_application_exprt{
+    cprover_z3_mk_str_length_symbol, {src_param_symbol}};
+  const auto returned_size = new_aux_symbol(
+    "z3strlen::returned_size", function_type.return_type(), symbol_table);
+  const auto returned_size_symbol = returned_size.symbol_expr();
+  new_body.add(goto_programt::make_decl(returned_size_symbol));
+  new_body.add(
+    goto_programt::make_assignment(returned_size_symbol, apply_z3_strlen));
+  new_body.add(goto_programt::make_return(code_returnt{returned_size_symbol}));
+  new_body.add(goto_programt::make_end_function());
+
+  strlen_function.body = std::move(new_body);
+}
+
+void string_instrumentationt::do_strchr_via_z3_str_at(
+  goto_functiont &strchr_function)
+{
+  const auto &function_type = to_code_type(strchr_function.type);
+  const auto &params = function_type.parameters();
+  const auto &str_param = params.at(0);
+  const auto str_param_symbol =
+    symbol_exprt{str_param.get_identifier(), str_param.type()};
+  const auto &ch_param = params.at(1);
+  const auto ch_param_symbol =
+    symbol_exprt{ch_param.get_identifier(), ch_param.type()};
+  goto_programt new_body;
+
+  const auto cprover_z3_mk_str_at_symbol =
+    symbol_exprt{ID_cprover_z3_mk_str_indexof,
+                 mathematical_function_typet{
+                   {str_param.type(), ch_param.type()}, index_type()}};
+  const auto apply_z3_strlen = function_application_exprt{
+    cprover_z3_mk_str_at_symbol, {str_param_symbol, ch_param_symbol}};
+  const auto returned_index =
+    new_aux_symbol("z3strat::returned_index", index_type(), symbol_table);
+  const auto returned_index_expr = returned_index.symbol_expr();
+  new_body.add(goto_programt::make_decl(returned_index_expr));
+  new_body.add(
+    goto_programt::make_assignment(returned_index_expr, apply_z3_strlen));
+
+  const auto found_case =
+    new_body.add(goto_programt::make_return(code_returnt{plus_exprt{
+      str_param_symbol, typecast_exprt{returned_index_expr, size_type()}}}));
+  const auto jump_to_found_case = new_body.insert_before(
+    found_case,
+    goto_programt::make_goto(
+      found_case,
+      binary_relation_exprt{
+        returned_index_expr, ID_ge, from_integer(0, index_type())}));
+  const auto return_null = new_body.insert_after(
+    jump_to_found_case,
+    goto_programt::make_return(
+      code_returnt{null_pointer_exprt{to_pointer_type(str_param.type())}}));
+  const auto end_function = new_body.add(goto_programt::make_end_function());
+  new_body.insert_after(
+    return_null, goto_programt::make_goto(end_function, true_exprt{}));
+
+  strchr_function.body = std::move(new_body);
 }
 
 void string_instrumentationt::do_strlen_via_c_strlen(

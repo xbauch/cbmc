@@ -380,7 +380,13 @@ void cbmc_parse_optionst::get_command_line_options(optionst &options)
     exit(CPROVER_EXIT_USAGE_ERROR);
   }
 
-  if(cmdline.isset("smt2"))
+  if(cmdline.isset("z3str"))
+  {
+    options.set_option("z3str", true);
+    options.set_option("z3", true);
+  }
+
+  if(cmdline.isset("smt2") || cmdline.isset("z3str"))
     options.set_option("smt2", true);
 
   if(cmdline.isset("fpa"))
@@ -835,11 +841,14 @@ bool cbmc_parse_optionst::process_goto_program(
 
   if(
     options.get_bool_option("string-abstraction") ||
-    options.get_bool_option("refine-strings"))
+    options.get_bool_option("refine-strings") ||
+    options.get_bool_option("z3str"))
+  {
     string_instrumentation(
       goto_model,
       log.get_message_handler(),
       options.get_option("max-nondet-string-length"));
+  }
 
   // remove function pointers
   log.status() << "Removal of function pointers and virtual functions"
