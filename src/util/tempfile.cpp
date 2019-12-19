@@ -142,6 +142,6 @@ std::string get_temporary_file(
 
 temporary_filet::~temporary_filet()
 {
-  if(!name.empty())
-    std::remove(name.c_str());
+  // if(!name.empty())
+  //   std::remove(name.c_str());
 }

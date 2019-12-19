@@ -887,7 +887,7 @@ void smt2_convt::convert_floatbv(const exprt &expr)
   out << ')';
 }
 
-std::string smt2_convt::string_expr_to_string(const exprt &e) const
+void smt2_convt::string_expr_to_string(const exprt &e)
 {
   PRECONDITION(options.get_bool_option("z3str"));
   if(e.id() == ID_address_of)
@@ -902,16 +902,71 @@ std::string smt2_convt::string_expr_to_string(const exprt &e) const
       {
         const auto symbol_expr = to_symbol_expr(array);
 
-        return std::string{"|"} + id2string(symbol_expr.get_identifier()) +
-               "_str|";
+        out << "|" << symbol_expr.get_identifier() << "_str|";
+        return;
+      }
+      else if(array.id() == ID_string_constant)
+      {
+        string_expr_to_string(array);
+        return;
       }
     }
   }
   else if(e.id() == ID_constant)
   { // int TODO more checks
+    if(e.type().id() == ID_pointer)
+    {
+      if(to_constant_expr(e).get_value() == ID_NULL)
+      {
+        out << "\"\"";
+        return;
+      }
+    }
     const auto constant = to_constant_expr(e);
     const auto c = hex_string_to_char(id2string(constant.get_value()));
-    return std::string{"\""} + std::string{c} + "\"";
+    out << "\"" << c << "\"";
+    return;
+  }
+  else if(e.id() == ID_symbol)
+  {
+    if(e.type().id() == ID_pointer)
+    {
+      if(e.type().subtype() == char_type())
+      {
+        out << "|" << to_symbol_expr(e).get_identifier() << "_str|";
+        return;
+      }
+    }
+  }
+  else if(e.id() == ID_if)
+  {
+    out << "(ite ";
+    const auto &if_expr = to_if_expr(e);
+    convert_expr(if_expr.cond());
+    out << " ";
+    string_expr_to_string(if_expr.true_case());
+    out << " ";
+    string_expr_to_string(if_expr.false_case());
+    out << ")";
+    return;
+  }
+  else if(e.id() == ID_string_constant)
+  {
+    out << "\"" << to_string_constant(e).get_value() << "\"";
+    return;
+  }
+  else if(e.id() == ID_plus)
+  {
+    out << "(str.substr ";
+    string_expr_to_string(e.op0());
+    out << " (bv2int ";
+    convert_expr(e.op1());
+    out << ") (- (str.len ";
+    string_expr_to_string(e.op0());
+    out << ") (bv2int ";
+    convert_expr(e.op1());
+    out << ")))";
+    return;
   }
   UNREACHABLE;
 }
@@ -944,8 +999,10 @@ void smt2_convt::convert_expr(const exprt &expr)
     {
       INVARIANT(arguments.size() == 2, "str.at takes two arguments");
       out << "((_ int2bv 64) (str.indexof ";
-      out << string_expr_to_string(arguments.at(0)) << " ";
-      out << string_expr_to_string(arguments.at(1));
+
+      string_expr_to_string(arguments.at(0));
+      out << " ";
+      string_expr_to_string(arguments.at(1));
       out << " 0))";
     }
     else
@@ -4240,9 +4297,20 @@ void smt2_convt::set_to(const exprt &expr, bool value)
 
         auto expr_is_string = [this](const exprt &e) {
           PRECONDITION(options.get_bool_option("z3str"));
-          return (e.id() == ID_address_of &&
-                  to_address_of_expr(e).object().id() == ID_index) ||
-                 e.id() == ID_array;
+          if(
+            (e.id() == ID_address_of &&
+             to_address_of_expr(e).object().id() == ID_index) ||
+            e.id() == ID_array)
+            return true;
+          if(e.id() == ID_if && char_ptr_is_string(e.type()))
+            return true;
+          if(e.id() == ID_symbol && char_ptr_is_string(e.type()))
+            return true;
+          if(e.id() == ID_pointer && char_ptr_is_string(e.type()))
+            return true;
+          if(e.id() == ID_plus && char_ptr_is_string(e.type()))
+            return true;
+          return false;
         };
 
         if(char_ptr_is_string(equal_expr.lhs().type()))
@@ -4260,7 +4328,8 @@ void smt2_convt::set_to(const exprt &expr, bool value)
             }
             else
             {
-              out << string_expr_to_string(prepared_rhs) << ")\n";
+              string_expr_to_string(prepared_rhs);
+              out << ")\n";
             }
           }
         }
@@ -4492,6 +4561,11 @@ void smt2_convt::find_symbols(const exprt &expr)
       const irep_idt id =
         "string." + std::to_string(defined_expressions.size());
       out << "; the following is a substitute for a string" << "\n";
+      if(options.get_bool_option("z3str"))
+      {
+        out << "(define-fun " << id << "_str () String \""
+            << to_string_constant(expr).get_value() << "\")\n";
+      }
       out << "(declare-fun " << id << " () ";
       convert_type(array_type);
       out << ")" << "\n";

@@ -126,7 +126,7 @@ protected:
   void convert_update(const exprt &expr);
 
   std::string convert_identifier(const irep_idt &identifier);
-  std::string string_expr_to_string(const exprt &e) const;
+  void string_expr_to_string(const exprt &e);
   bool char_ptr_is_string(const typet &t) const;
 
   void convert_expr(const exprt &);
