@@ -67,6 +67,7 @@ Author: Daniel Kroening, kroening@kroening.com
 #include <goto-programs/show_symbol_table.h>
 #include <goto-programs/string_abstraction.h>
 #include <goto-programs/string_instrumentation.h>
+#include <goto-programs/c_string_refinement.h>
 #include <goto-programs/validate_goto_model.h>
 
 #include <goto-instrument/cover.h>
@@ -362,6 +363,9 @@ void cbmc_parse_optionst::get_command_line_options(optionst &options)
   {
     options.set_option("refine-strings", true);
     options.set_option("string-printable", cmdline.isset("string-printable"));
+    options.set_option(
+      "max-nondet-string-length",
+      cmdline.get_value("max-nondet-string-length"));
   }
 
   if(cmdline.isset("max-node-refinement"))
@@ -832,6 +836,11 @@ bool cbmc_parse_optionst::process_goto_program(
 
   if(options.get_bool_option("string-abstraction"))
     string_instrumentation(goto_model, log.get_message_handler());
+  else if("refine-strings")
+    c_string_refinement(
+      goto_model,
+      log.get_message_handler(),
+      options.get_option("max-nondet-string-length"));
 
   // remove function pointers
   log.status() << "Removal of function pointers and virtual functions"
