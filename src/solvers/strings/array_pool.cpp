@@ -111,7 +111,7 @@ array_string_exprt array_poolt::make_char_array_for_char_pointer(
 
   if(is_constant_array)
   {
-    return to_array_string_expr(massage_weird_arrays_into_non_weird_arrays(
+    return to_array_string_expr(convert_string_representation_to_array(
       to_index_expr(to_address_of_expr(char_pointer).object()).array()));
   }
   const std::string symbol_name = "char_array_" + id2string(char_pointer.id());

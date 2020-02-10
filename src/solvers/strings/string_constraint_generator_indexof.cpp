@@ -82,11 +82,9 @@ string_constraint_generatort::add_axioms_for_index_of(
   return {index, std::move(constraints)};
 }
 
-/// Add axioms stating that the returned value is the index within `haystack`
-/// (`str`) of the first occurrence of `needle` (`c`) starting the search at
-/// `from_index`, or is `-1` if no such character occurs at or after position
-/// `from_index`.
-/// \todo Make argument names match whose of add_axioms_for_index_of_string
+/// Add axioms stating that the returned value is the index within `haystack` of
+/// the first occurrence of `needle` starting the search at `from_index`, or is
+/// `-1` if no such character occurs at or after position `from_index`.
 ///
 /// These axioms are:
 ///   1a. \f$-1 \le {\tt index} < {\tt terminating_zero} \f$
@@ -106,22 +104,23 @@ string_constraint_generatort::add_axioms_for_index_of(
 /// \return integer expression `index`
 std::pair<exprt, string_constraintst>
 string_constraint_generatort::add_axioms_for_c_index_of(
-  const array_string_exprt &str,
-  const exprt &c,
+  const array_string_exprt &haystack,
+  const exprt &needle,
   const exprt &from_index)
 {
   string_constraintst constraints;
-  const typet &index_type = str.length_type();
+  const typet &index_type = haystack.length_type();
   symbol_exprt index = fresh_symbol("index_of", index_type);
   symbol_exprt contains = fresh_symbol("contains_in_index_of");
   symbol_exprt terminating_zero = fresh_symbol("zero_in_index_of", index_type);
 
-  exprt minus1 = from_integer(-1, index_type);
-  and_exprt a1(
-    binary_relation_exprt(index, ID_ge, minus1),
-    binary_relation_exprt(index, ID_le, terminating_zero),
-    binary_relation_exprt(
-      terminating_zero, ID_lt, array_pool.get_or_create_length(str)));
+  const exprt minus1 = from_integer(-1, index_type);
+  const auto valid_index = binary_relation_exprt{index, ID_ge, minus1};
+  const auto index_in_bounds =
+    binary_relation_exprt{index, ID_le, terminating_zero};
+  const auto haystack_terminates = binary_relation_exprt{
+    terminating_zero, ID_lt, array_pool.get_or_create_length(haystack)};
+  const auto a1 = and_exprt{valid_index, index_in_bounds, haystack_terminates};
   constraints.existential.push_back(a1);
 
   equal_exprt a2(not_exprt(contains), equal_exprt(index, minus1));
@@ -131,27 +130,28 @@ string_constraint_generatort::add_axioms_for_c_index_of(
   // make sure that terminating zero exists (and is the smallest index after
   // from that has a 0 character)
   constraints.existential.push_back(
-    equal_exprt{str[terminating_zero], from_integer(0, c.type())});
+    equal_exprt{haystack[terminating_zero], from_integer(0, needle.type())});
   symbol_exprt k = fresh_symbol("QA_index_of", index_type);
   const string_constraintt a0 = string_constraintt{
     k,
     lower_bound,
     zero_if_negative(terminating_zero),
-    not_exprt{equal_exprt{str[k], from_integer(0, c.type())}}};
+    not_exprt{equal_exprt{haystack[k], from_integer(0, needle.type())}}};
   constraints.universal.push_back(a0);
 
   implies_exprt a3(
     contains,
     and_exprt(
       binary_relation_exprt(from_index, ID_le, index),
-      equal_exprt(str[index], c)));
+      equal_exprt(haystack[index], needle)));
   constraints.existential.push_back(a3);
 
   symbol_exprt n = fresh_symbol("QA_index_of", index_type);
-  string_constraintt a4{n,
-                        lower_bound,
-                        zero_if_negative(index),
-                        implies_exprt{contains, notequal_exprt{str[n], c}}};
+  string_constraintt a4{
+    n,
+    lower_bound,
+    zero_if_negative(index),
+    implies_exprt{contains, notequal_exprt{haystack[n], needle}}};
   constraints.universal.push_back(a4);
 
   symbol_exprt m = fresh_symbol("QA_index_of", index_type);
@@ -160,7 +160,8 @@ string_constraint_generatort::add_axioms_for_c_index_of(
     lower_bound,
     zero_if_negative(
       plus_exprt{terminating_zero, from_integer(1, terminating_zero.type())}),
-    implies_exprt(not_exprt(contains), not_exprt(equal_exprt(str[m], c))));
+    implies_exprt(
+      not_exprt(contains), not_exprt(equal_exprt(haystack[m], needle))));
   constraints.universal.push_back(a5);
 
   return {index, std::move(constraints)};

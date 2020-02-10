@@ -194,8 +194,8 @@ public:
     const exprt &c,
     const exprt &from_index);
   std::pair<exprt, string_constraintst> add_axioms_for_c_index_of(
-    const array_string_exprt &str,
-    const exprt &c,
+    const array_string_exprt &haystack,
+    const exprt &needle,
     const exprt &from_index);
   std::pair<exprt, string_constraintst> add_axioms_for_index_of_string(
     const array_string_exprt &haystack,

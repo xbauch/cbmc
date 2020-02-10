@@ -27,14 +27,9 @@ Author: Diffblue Ltd.
 
 bool is_char_type(const typet &type)
 {
-  if(type.id() == ID_unsignedbv)
-    return to_unsignedbv_type(type).get_width() <=
+  return (type.id() == ID_unsignedbv || type.id() == ID_signedbv) &&
+         to_bitvector_type(type).get_width() <=
            STRING_REFINEMENT_MAX_CHAR_WIDTH;
-
-  if(type.id() == ID_signedbv)
-    return to_signedbv_type(type).get_width() <= 8;
-
-  return false;
 }
 
 bool is_char_array_type(const typet &type, const namespacet &ns)
@@ -201,67 +196,49 @@ array_exprt interval_sparse_arrayt::concretize(
   return array;
 }
 
-exprt maybe_byte_extract_expr(const exprt &expr)
+exprt byte_extract_object_with_constant_offset(
+  const byte_extract_exprt &byte_extract_expr)
 {
-  if(!can_cast_expr<byte_extract_exprt>(expr))
-    return expr;
-
-  const auto &byte_extract_expr = to_byte_extract_expr(expr);
   const auto &offset = byte_extract_expr.offset();
   PRECONDITION(offset.id() == ID_constant);
-  if(offset.id() != ID_constant)
-  {
-    return expr;
-  }
+
   const auto &constant_offset = to_constant_expr(offset);
   const auto &op = byte_extract_expr.op();
   auto numeric_offset =
     string2optional_int(id2string(constant_offset.get_value()));
-  PRECONDITION(numeric_offset.has_value());
-  if(*numeric_offset == 0)
-  {
-    return op;
-  }
+  CHECK_RETURN(numeric_offset.has_value());
 
-  array_exprt::operandst offset_operands;
-  offset_operands.insert(
-    offset_operands.end(),
-    op.operands().begin() + *numeric_offset,
-    op.operands().end());
-  const auto extracted_array_suffix =
-    array_exprt{offset_operands, to_array_type(op.type())};
-
-  return extracted_array_suffix;
+  return *numeric_offset == 0
+           ? op
+           : array_exprt{
+               array_exprt::operandst{op.operands().begin() + *numeric_offset,
+                                      op.operands().end()},
+               to_array_type(op.type())};
 }
 
-exprt maybe_remove_string_exprs(const exprt &expr)
+exprt convert_string_representation_to_array(const exprt &expr)
 {
-  return [&]() {
-    if(
-      auto const &maybe_string_constant =
-        expr_try_dynamic_cast<string_constantt>(expr))
-    {
-      return static_cast<const exprt &>(maybe_string_constant->to_array_expr());
-    }
-    else
-    {
-      return expr;
-    }
-  }();
-}
-
-exprt massage_weird_arrays_into_non_weird_arrays(const exprt &expr)
-{
-  auto const byte_extracted = maybe_byte_extract_expr(expr);
-  auto const string_removed = maybe_remove_string_exprs(byte_extracted);
-  PRECONDITION(string_removed.type().id() == ID_array);
-  if(string_removed.id() == ID_if)
+  exprt result = expr;
+  if(can_cast_expr<byte_extract_exprt>(result))
   {
-    return if_exprt{
-      string_removed.op0(),
-      massage_weird_arrays_into_non_weird_arrays(string_removed.op1()),
-      massage_weird_arrays_into_non_weird_arrays(string_removed.op2()),
-      string_removed.type()};
+    result =
+      byte_extract_object_with_constant_offset(to_byte_extract_expr(result));
   }
-  return string_removed;
+  if(
+    auto const &string_constant =
+      expr_try_dynamic_cast<string_constantt>(result))
+  {
+    result = static_cast<const exprt &>(string_constant->to_array_expr());
+  }
+  CHECK_RETURN(result.type().id() == ID_array);
+
+  CHECK_RETURN(result.id() == ID_array || result.id() == ID_if);
+  if(result.id() == ID_if)
+  {
+    return if_exprt{result.op0(),
+                    convert_string_representation_to_array(result.op1()),
+                    convert_string_representation_to_array(result.op2()),
+                    result.type()};
+  }
+  return result;
 }

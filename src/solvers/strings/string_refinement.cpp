@@ -1213,8 +1213,7 @@ static optionalt<exprt> substitute_array_access(
   symbol_generatort &symbol_generator,
   const bool left_propagate)
 {
-  const auto array =
-    massage_weird_arrays_into_non_weird_arrays(index_expr.array());
+  const auto array = convert_string_representation_to_array(index_expr.array());
   if(auto array_of = expr_try_dynamic_cast<array_of_exprt>(array))
     return array_of->op();
   if(auto array_with = expr_try_dynamic_cast<with_exprt>(array))
@@ -1635,14 +1634,14 @@ static void initial_index_set(
       ns,
       qvar,
       upper_bound,
-      massage_weird_arrays_into_non_weird_arrays(ite->true_case()),
+      convert_string_representation_to_array(ite->true_case()),
       i);
     initial_index_set(
       index_set,
       ns,
       qvar,
       upper_bound,
-      massage_weird_arrays_into_non_weird_arrays(ite->false_case()),
+      convert_string_representation_to_array(ite->false_case()),
       i);
     return;
   }
@@ -1666,8 +1665,7 @@ static void initial_index_set(
     if(it->id() == ID_index && is_char_type(it->type()))
     {
       const auto &index_expr = to_index_expr(*it);
-      const auto s =
-        massage_weird_arrays_into_non_weird_arrays(index_expr.array());
+      const auto s = convert_string_representation_to_array(index_expr.array());
       initial_index_set(index_set, ns, qvar, bound, s, index_expr.index());
       it.next_sibling_or_parent();
     }
@@ -1862,7 +1860,7 @@ exprt string_refinementt::get(const exprt &expr) const
         UNREACHABLE;
     }
     const auto array =
-      massage_weird_arrays_into_non_weird_arrays(supert::get(current.get()));
+      convert_string_representation_to_array(supert::get(current.get()));
 
     const auto index = get(index_expr->index());
 
