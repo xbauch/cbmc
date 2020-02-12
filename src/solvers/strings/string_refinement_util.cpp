@@ -231,14 +231,22 @@ exprt convert_string_representation_to_array(const exprt &expr)
     result = static_cast<const exprt &>(string_constant->to_array_expr());
   }
   CHECK_RETURN(result.type().id() == ID_array);
+  //  CHECK_RETURN(result.type() == expr.type());
 
-  CHECK_RETURN(result.id() == ID_array || result.id() == ID_if);
+  CHECK_RETURN(
+    result.id() == ID_array || result.id() == ID_if ||
+    result.id() == ID_symbol || result.id() == ID_array_list);
   if(result.id() == ID_if)
   {
     return if_exprt{result.op0(),
                     convert_string_representation_to_array(result.op1()),
                     convert_string_representation_to_array(result.op2()),
                     result.type()};
+  }
+  if(false) // (result.id() == ID_symbol && result.type() != expr.type())
+  {
+    auto &result_type_size = to_array_type(result.type()).size();
+    result_type_size = to_array_type(expr.type()).size();
   }
   return result;
 }

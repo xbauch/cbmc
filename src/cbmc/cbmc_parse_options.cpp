@@ -836,7 +836,7 @@ bool cbmc_parse_optionst::process_goto_program(
 
   if(options.get_bool_option("string-abstraction"))
     string_instrumentation(goto_model, log.get_message_handler());
-  else if("refine-strings")
+  else if(options.get_bool_option("refine-strings"))
     c_string_refinement(
       goto_model,
       log.get_message_handler(),

@@ -40,6 +40,8 @@ private:
   namespacet ns;
   size_t max_nondet_string_length;
   size_t symbol_counter = 0;
+  const typet string_size_type = size_type();
+  const typet string_index_type = index_type();
 
   auxiliary_symbolt new_aux_string_symbol(
     const std::string &name,
@@ -121,7 +123,7 @@ void c_string_refinementt::do_strchr(goto_functiont &strchr_function)
   const auto &str_param = params.at(0);
   const auto &ch_param = params.at(1);
   const auto refined_string_type =
-    refined_string_typet{index_type(), to_pointer_type(str_param.type())};
+    refined_string_typet{string_size_type, to_pointer_type(str_param.type())};
   const auto str_param_symbol =
     symbol_exprt{str_param.get_identifier(), str_param.type()};
   const auto ch_param_symbol =
@@ -134,11 +136,11 @@ void c_string_refinementt::do_strchr(goto_functiont &strchr_function)
   const auto cprover_string_index_of_func_symbol = symbol_exprt{
     ID_cprover_string_c_index_of_func,
     mathematical_function_typet(
-      {refined_string.type(), ch_param_symbol.type()}, index_type())};
+      {refined_string.type(), ch_param_symbol.type()}, string_index_type)};
   const auto apply_index_of = function_application_exprt{
     cprover_string_index_of_func_symbol, {refined_string, ch_param_symbol}};
   const auto maybe_return = new_aux_string_symbol(
-    "strchr::indexOf::maybe_return", index_type(), symbol_table);
+    "strchr::indexOf::maybe_return", string_index_type, symbol_table);
   const auto maybe_return_expr = maybe_return.symbol_expr();
   new_body.add(goto_programt::make_decl(maybe_return_expr));
   new_body.add(
@@ -148,15 +150,15 @@ void c_string_refinementt::do_strchr(goto_functiont &strchr_function)
   //     return src + maybe_return;
   //   else
   //     return NULL:
-  auto found_case = new_body.add(goto_programt::make_return(code_returnt{
-    plus_exprt{str_param_symbol,
-               typecast_exprt{maybe_return.symbol_expr(), size_type()}}}));
+  auto found_case = new_body.add(goto_programt::make_return(
+    code_returnt{plus_exprt{str_param_symbol, maybe_return_expr}}));
+  //               typecast_exprt{maybe_return.symbol_expr(), size_type()}}}));
   auto jump_to_found_case = new_body.insert_before(
     found_case,
     goto_programt::make_goto(
       found_case,
       binary_relation_exprt{
-        maybe_return.symbol_expr(), ID_ge, from_integer(0, index_type())}));
+        maybe_return_expr, ID_ge, from_integer(0, maybe_return_expr.type())}));
   auto return_null = new_body.insert_after(
     jump_to_found_case,
     goto_programt::make_return(
@@ -174,9 +176,10 @@ refined_string_exprt c_string_refinementt::char_ptr_to_refined_string(
   const exprt &char_ptr,
   goto_programt &program)
 {
-  // int string_length = nondet();
   const auto length_symbol = new_aux_string_symbol(
-    "cprover_string_index_of_func::string_length", index_type(), symbol_table);
+    "cprover_string_index_of_func::string_length",
+    string_size_type,
+    symbol_table);
   const auto length_symbol_expr = length_symbol.symbol_expr();
   program.add(goto_programt::make_decl(length_symbol_expr));
   program.add(goto_programt::make_assignment(
@@ -187,7 +190,7 @@ refined_string_exprt c_string_refinementt::char_ptr_to_refined_string(
   program.add(goto_programt::make_assumption(binary_relation_exprt{
     length_symbol_expr,
     ID_le,
-    from_integer(max_nondet_string_length, index_type())}));
+    from_integer(max_nondet_string_length, length_symbol_expr.type())}));
 
   // char *string_content = src;
   const auto content_symbol = new_aux_string_symbol(
@@ -201,7 +204,7 @@ refined_string_exprt c_string_refinementt::char_ptr_to_refined_string(
   // char (*nondet_infinite_array_ponter)[\infty];
   const symbolt nondet_infinite_array_pointer = new_aux_string_symbol(
     "cprover_string_index_of_func::nondet_infinite_array_pointer",
-    pointer_type(array_typet{char_type(), infinity_exprt(index_type())}),
+    pointer_type(array_typet{char_type(), infinity_exprt{string_size_type}}),
     symbol_table);
   const symbol_exprt nondet_infinite_array_pointer_expr =
     nondet_infinite_array_pointer.symbol_expr();
@@ -216,10 +219,11 @@ refined_string_exprt c_string_refinementt::char_ptr_to_refined_string(
   const auto refined_string_expr = refined_string_exprt{
     length_symbol_expr,
     content_symbol_expr,
-    refined_string_typet{index_type(), to_pointer_type(char_ptr.type())}};
+    refined_string_typet{length_symbol_expr.type(),
+                         to_pointer_type(char_ptr.type())}};
   const symbolt return_array_length = new_aux_string_symbol(
     "cprover_string_index_of_func::return_array_length",
-    index_type(),
+    string_size_type,
     symbol_table);
   dereference_exprt nondet_array_expr{nondet_infinite_array_pointer_expr};
   const auto cprover_associate_length_to_array_func_symbol = symbol_exprt{
@@ -229,7 +233,7 @@ refined_string_exprt c_string_refinementt::char_ptr_to_refined_string(
   const auto apply_associate_length_to_array = function_application_exprt{
     cprover_associate_length_to_array_func_symbol,
     {nondet_array_expr, refined_string_expr.length()},
-    index_type()};
+    string_size_type};
   const auto return_length_expr = return_array_length.symbol_expr();
   program.add(goto_programt::make_decl(return_length_expr));
   program.add(goto_programt::make_assignment(
@@ -238,10 +242,10 @@ refined_string_exprt c_string_refinementt::char_ptr_to_refined_string(
   // cprover_associate_array_to_pointer_func(nondet_infinite_array_pointer,
   //                                         src);
   const address_of_exprt array_pointer(
-    index_exprt(nondet_array_expr, from_integer(0, index_type())));
+    index_exprt(nondet_array_expr, from_integer(0, string_index_type)));
   program.add(goto_programt::make_assignment(array_pointer, char_ptr));
-  const symbolt return_sym_pointer =
-    new_aux_string_symbol("return_array_pointer", index_type(), symbol_table);
+  const symbolt return_sym_pointer = new_aux_string_symbol(
+    "return_array_pointer", string_index_type, symbol_table);
   const auto cprover_associate_array_to_pointer_func_symbol =
     symbol_exprt{ID_cprover_associate_array_to_pointer_func,
                  mathematical_function_typet{
