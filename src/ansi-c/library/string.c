@@ -935,6 +935,21 @@ inline int memcmp(const void *s1, const void *s2, size_t n)
 
 #undef strchr
 
+long __CPROVER_math_func_string_index_of(
+  const char *haystack,
+  __CPROVER_size_t length,
+  char needle)
+{
+  for(__CPROVER_size_t i = 0; i < length; i++)
+  {
+    if(haystack[i] == needle)
+      return i;
+  }
+  return -1;
+}
+
+__CPROVER_size_t __VERIFIER_nondet___CPROVER_size_t();
+
 inline char *strchr(const char *src, int c)
 {
   __CPROVER_HIDE:;
@@ -945,14 +960,17 @@ inline char *strchr(const char *src, int c)
   __CPROVER_size_t i;
   return found?src+i:0;
   #else
-  for(__CPROVER_size_t i=0; ; i++)
-  {
-    if(src[i]==(char)c)
-      return ((char *)src)+i; // cast away const-ness
-    if(src[i]==0) break;
-  }
-  return 0;
-  #endif
+
+    __CPROVER_size_t src_array_length = __VERIFIER_nondet___CPROVER_size_t();
+    long index_of_zero =
+      __CPROVER_math_func_string_index_of(src, src_array_length, '\0');
+    long index_of_c = __CPROVER_math_func_string_index_of(
+      src, (__CPROVER_size_t)index_of_zero, c);
+    if(index_of_c >= 0)
+      return ((char *)src) + (__CPROVER_size_t)index_of_c;
+    else
+      return (char *)0;
+#endif
 }
 
 /* FUNCTION: strrchr */
