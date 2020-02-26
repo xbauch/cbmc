@@ -116,24 +116,17 @@ inline void *malloc(__CPROVER_size_t malloc_size)
   // and __CPROVER_allocate doesn't, but no one cares
   __CPROVER_HIDE:;
 
-    if(
-      __CPROVER_malloc_failure_mode ==
-      __CPROVER_malloc_failure_mode_return_null)
+#ifdef __CPROVER_MALLOC_FAILURE_MODE_RETURN_NULL
+    if(malloc_size > __CPROVER_max_malloc_size)
     {
-      if(malloc_size > __CPROVER_max_malloc_size)
-      {
-        return (void *)0;
-      }
+      return (void *)0;
     }
-    else if(
-      __CPROVER_malloc_failure_mode ==
-      __CPROVER_malloc_failure_mode_assert_then_assume)
-    {
-      __CPROVER_assert(
-        malloc_size <= __CPROVER_max_malloc_size,
-        "max allocation size exceeded");
-      __CPROVER_assume(malloc_size <= __CPROVER_max_malloc_size);
-    }
+#endif
+#ifdef __CPROVER_MALLOC_FAILURE_MODE_ASSERT_THEN_ASSUME
+    __CPROVER_assert(
+      malloc_size <= __CPROVER_max_malloc_size, "max allocation size exceeded");
+    __CPROVER_assume(malloc_size <= __CPROVER_max_malloc_size);
+#endif
 
     void *malloc_res;
     malloc_res = __CPROVER_allocate(malloc_size, 0);

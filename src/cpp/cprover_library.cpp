@@ -23,6 +23,24 @@ static std::string get_cprover_library_text(
   library_text << "#line 1 \"<builtin-library>\"\n"
                << "#undef inline\n";
 
+  if(config.ansi_c.string_abstraction)
+    library_text << "#define " CPROVER_PREFIX "STRING_ABSTRACTION\n";
+
+  if(
+    config.ansi_c.malloc_failure_mode ==
+    config.ansi_c.malloc_failure_mode_return_null)
+  {
+    library_text << "#define " CPROVER_PREFIX
+                    "MALLOC_FAILURE_MODE_RETURN_NULL\n";
+  }
+  if(
+    config.ansi_c.malloc_failure_mode ==
+    config.ansi_c.malloc_failure_mode_assert_then_assume)
+  {
+    library_text << "#define " CPROVER_PREFIX
+                    "MALLOC_FAILURE_MODE_ASSERT_THEN_ASSUME\n";
+  }
+
   // cprover_library.inc may not have been generated when running Doxygen, thus
   // make Doxygen skip this part
   /// \cond
